@@ -1,0 +1,410 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTHENTICATION & USERS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  DIRECTION
+  RESP_PRODUCTION
+  RESP_MAINTENANCE
+  RESP_QUALITE
+  SUPERVISEUR
+  LECTURE_SEULE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  role          UserRole  @default(LECTURE_SEULE)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  productionEntries  ProductionEntry[]  @relation("CreatedByUser")
+  updatedEntries     ProductionEntry[]  @relation("UpdatedByUser")
+  downtimeEntries    DowntimeEntry[]    @relation("DowntimeCreatedBy")
+  updatedDowntimes   DowntimeEntry[]    @relation("DowntimeUpdatedBy")
+  actionPlans        ActionPlan[]       @relation("ActionCreatedBy")
+  assignedActions    ActionPlan[]       @relation("ActionAssignedTo")
+  auditLogs          AuditLog[]
+
+  @@index([role])
+  @@index([email])
+}
+
+// ============================================
+// REFERENTIALS
+// ============================================
+
+model Site {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  address   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workshops Workshop[]
+}
+
+model Workshop {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  siteId    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site  Site             @relation(fields: [siteId], references: [id])
+  lines PackagingLine[]
+
+  @@index([siteId])
+}
+
+model PackagingLine {
+  id              String   @id @default(cuid())
+  name            String
+  code            String   @unique
+  workshopId      String
+  defaultSpeed    Float?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workshop         Workshop          @relation(fields: [workshopId], references: [id])
+  productionEntries ProductionEntry[]
+  downtimeEntries  DowntimeEntry[]
+  kpiThresholds    KPIThreshold[]
+
+  @@index([workshopId])
+  @@index([code])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  family    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  formats           Format[]
+  productionEntries ProductionEntry[]
+}
+
+model Format {
+  id              String   @id @default(cuid())
+  name            String
+  code            String   @unique
+  productId       String
+  unitsPerPack    Int?
+  theoreticalSpeed Float?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  product           Product           @relation(fields: [productId], references: [id])
+  productionEntries ProductionEntry[]
+
+  @@index([productId])
+}
+
+model Shift {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  startTime String
+  endTime   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productionEntries ProductionEntry[]
+  downtimeEntries   DowntimeEntry[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productionEntries ProductionEntry[]
+}
+
+// ============================================
+// DOWNTIME CAUSES
+// ============================================
+
+enum DowntimeType {
+  PLANNED
+  UNPLANNED
+}
+
+enum Responsibility {
+  PRODUCTION
+  MAINTENANCE
+  QUALITE
+  LOGISTIQUE
+  AUTRE
+}
+
+model DowntimeCause {
+  id             String       @id @default(cuid())
+  name           String
+  code           String       @unique
+  type           DowntimeType
+  responsibility Responsibility
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  subCauses       DowntimeSubCause[]
+  downtimeEntries DowntimeEntry[]
+}
+
+model DowntimeSubCause {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  causeId   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cause           DowntimeCause   @relation(fields: [causeId], references: [id])
+  downtimeEntries DowntimeEntry[]
+
+  @@index([causeId])
+}
+
+// ============================================
+// PRODUCTION DATA
+// ============================================
+
+enum ValidationStatus {
+  DRAFT
+  SUBMITTED
+  VALIDATED
+  REJECTED
+}
+
+model ProductionEntry {
+  id                    String           @id @default(cuid())
+  date                  DateTime         @db.Date
+  lineId                String
+  shiftId               String
+  teamId                String?
+  productId             String
+  formatId              String
+  lot                   String
+  orderNumber           String?
+
+  // Times (in minutes)
+  plannedTime           Float
+  plannedUsefulTime     Float
+  actualRunningTime     Float
+  plannedDowntime       Float            @default(0)
+  unplannedDowntime     Float            @default(0)
+  formatChangeTime      Float            @default(0)
+  adjustmentTime        Float            @default(0)
+  cleaningTime          Float            @default(0)
+  qualityWaitTime       Float            @default(0)
+  maintenanceWaitTime   Float            @default(0)
+  materialWaitTime      Float            @default(0)
+  microStopTime         Float            @default(0)
+
+  // Speed
+  theoreticalSpeed      Float
+  actualSpeed           Float
+
+  // Quantities
+  quantityProduced      Float
+  quantityConform       Float
+  quantityRejected      Float            @default(0)
+
+  // Calculated KPIs (stored for performance)
+  availability          Float?
+  performance           Float?
+  quality               Float?
+  oee                   Float?
+
+  comment               String?
+  status                ValidationStatus @default(DRAFT)
+
+  createdById           String
+  updatedById           String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  line      PackagingLine @relation(fields: [lineId], references: [id])
+  shift     Shift         @relation(fields: [shiftId], references: [id])
+  team      Team?         @relation(fields: [teamId], references: [id])
+  product   Product       @relation(fields: [productId], references: [id])
+  format    Format        @relation(fields: [formatId], references: [id])
+  createdBy User          @relation("CreatedByUser", fields: [createdById], references: [id])
+  updatedBy User?         @relation("UpdatedByUser", fields: [updatedById], references: [id])
+
+  downtimeEntries DowntimeEntry[]
+
+  @@index([date])
+  @@index([lineId])
+  @@index([shiftId])
+  @@index([productId])
+  @@index([lineId, date])
+  @@index([status])
+}
+
+// ============================================
+// DOWNTIME ENTRIES
+// ============================================
+
+enum DowntimeStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model DowntimeEntry {
+  id                  String         @id @default(cuid())
+  productionEntryId   String?
+  lineId              String
+  shiftId             String?
+  date                DateTime       @db.Date
+  startTime           DateTime
+  endTime             DateTime?
+  duration            Float?
+  type                DowntimeType
+  causeId             String
+  subCauseId          String?
+  description         String?
+  responsibility      Responsibility
+  estimatedImpact     Float?
+  immediateAction     String?
+  status              DowntimeStatus @default(OPEN)
+
+  createdById         String
+  updatedById         String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  productionEntry ProductionEntry? @relation(fields: [productionEntryId], references: [id])
+  line            PackagingLine    @relation(fields: [lineId], references: [id])
+  shift           Shift?           @relation(fields: [shiftId], references: [id])
+  cause           DowntimeCause    @relation(fields: [causeId], references: [id])
+  subCause        DowntimeSubCause? @relation(fields: [subCauseId], references: [id])
+  createdBy       User             @relation("DowntimeCreatedBy", fields: [createdById], references: [id])
+  updatedBy       User?            @relation("DowntimeUpdatedBy", fields: [updatedById], references: [id])
+
+  actionPlans ActionPlan[]
+
+  @@index([lineId])
+  @@index([date])
+  @@index([causeId])
+  @@index([lineId, date])
+}
+
+// ============================================
+// ACTION PLANS
+// ============================================
+
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ActionStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+  OVERDUE
+}
+
+model ActionPlan {
+  id              String         @id @default(cuid())
+  title           String
+  description     String?
+  downtimeEntryId String?
+  causeId         String?
+  assignedToId    String
+  targetDate      DateTime       @db.Date
+  priority        ActionPriority @default(MEDIUM)
+  status          ActionStatus   @default(TODO)
+  progress        Int            @default(0)
+  comment         String?
+  completedAt     DateTime?
+
+  createdById     String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  downtimeEntry DowntimeEntry? @relation(fields: [downtimeEntryId], references: [id])
+  assignedTo    User           @relation("ActionAssignedTo", fields: [assignedToId], references: [id])
+  createdBy     User           @relation("ActionCreatedBy", fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([targetDate])
+}
+
+// ============================================
+// KPI THRESHOLDS
+// ============================================
+
+model KPIThreshold {
+  id        String   @id @default(cuid())
+  lineId    String?
+  kpiName   String
+  greenMin  Float
+  orangeMin Float
+  redMax    Float
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  line PackagingLine? @relation(fields: [lineId], references: [id])
+
+  @@unique([lineId, kpiName])
+  @@index([kpiName])
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  entity      String
+  entityId    String
+  oldValue    String?  @db.Text
+  newValue    String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
