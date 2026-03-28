@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, CheckCircle } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 
 const EMPTY = { lot: "", lineId: "", productId: "", shiftId: "", date: "", orderNumber: "", comment: "", status: "OPEN" };
 
@@ -89,8 +89,8 @@ export default function AdminLotsPage() {
     { key: "lot", header: "N° Lot", sortable: true, sortValue: (r) => r.lot, accessor: (r) => <span className="font-mono font-semibold">{r.lot}</span> },
     { key: "line", header: "Ligne", accessor: (r) => r.line?.name || "—" },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name || "—" },
-    { key: "shift", header: "Shift", accessor: (r) => r.shift?.name || "—" },
-    { key: "date", header: "Date", sortable: true, sortValue: (r) => r.date, accessor: (r) => formatDate(r.date) },
+    { key: "start", header: "Début", sortable: true, sortValue: (r) => r.startTime, accessor: (r) => formatDateTime(r.startTime) },
+    { key: "end", header: "Fin", accessor: (r) => r.endTime ? formatDateTime(r.endTime) : "En cours" },
     { key: "status", header: "Statut", accessor: (r) => <Badge variant={r.status === "OPEN" ? "success" : "default"}>{r.status === "OPEN" ? "Ouvert" : "Clôturé"}</Badge> },
     { key: "downtimes", header: "Arrêts", accessor: (r) => r._count?.downtimeEvents || 0 },
     { key: "decl", header: "Saisies", accessor: (r) => r._count?.productionDeclarations || 0 },

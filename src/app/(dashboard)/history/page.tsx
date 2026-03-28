@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import { FileDown } from "lucide-react";
 
 export default function HistoryPage() {
@@ -33,9 +33,9 @@ export default function HistoryPage() {
   }, [filterLine, filterFrom, filterTo]);
 
   function exportCSV() {
-    const headers = ["Date", "Lot", "Ligne", "Produit", "Shift", "Statut", "Arrêts", "Saisies"];
+    const headers = ["Début", "Lot", "Ligne", "Produit", "Statut", "Arrêts", "Saisies"];
     const rows = batches.map((b: any) => [
-      formatDate(b.date), b.lot, b.line?.name, b.product?.name, b.shift?.name || "",
+      formatDateTime(b.startTime), b.lot, b.line?.name, b.product?.name,
       b.status, b._count?.downtimeEvents || 0, b._count?.productionDeclarations || 0,
     ]);
     const csv = [headers, ...rows].map((r) => r.join(";")).join("\n");
@@ -46,11 +46,10 @@ export default function HistoryPage() {
   }
 
   const columns: Column<any>[] = [
-    { key: "date", header: "Date", sortable: true, sortValue: (r) => r.date, accessor: (r) => formatDate(r.date) },
+    { key: "start", header: "Début", sortable: true, sortValue: (r) => r.startTime, accessor: (r) => formatDateTime(r.startTime) },
     { key: "lot", header: "Lot", sortable: true, sortValue: (r) => r.lot, accessor: (r) => <span className="font-mono">{r.lot}</span> },
     { key: "line", header: "Ligne", accessor: (r) => r.line?.name || "—" },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name || "—" },
-    { key: "shift", header: "Shift", accessor: (r) => r.shift?.name || "—" },
     { key: "status", header: "Statut", accessor: (r) => <Badge variant={r.status === "OPEN" ? "success" : "default"}>{r.status === "OPEN" ? "Ouvert" : "Clôturé"}</Badge> },
     { key: "downtimes", header: "Arrêts", accessor: (r) => r._count?.downtimeEvents || 0 },
     { key: "decl", header: "Saisies", accessor: (r) => r._count?.productionDeclarations || 0 },

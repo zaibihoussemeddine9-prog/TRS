@@ -102,7 +102,7 @@ export default function BatchDetailPage() {
     setEditingDeclId(null);
     setDeclForm({
       ...DECL_EMPTY,
-      date: batch ? new Date(batch.date).toISOString().split("T")[0] : "",
+      date: batch?.startTime ? new Date(batch.startTime).toISOString().split("T")[0] : "",
     });
     setError("");
     setShowDeclModal(true);
@@ -545,12 +545,12 @@ export default function BatchDetailPage() {
               <p className="font-medium">{batch.product?.name}</p>
             </div>
             <div>
-              <p className="text-slate-500">Shift</p>
-              <p className="font-medium">{batch.shift?.name}</p>
+              <p className="text-slate-500">Début</p>
+              <p className="font-medium">{formatDateTime(batch.startTime)}</p>
             </div>
             <div>
-              <p className="text-slate-500">Date</p>
-              <p className="font-medium">{formatDate(batch.date)}</p>
+              <p className="text-slate-500">Fin</p>
+              <p className="font-medium">{batch.endTime ? formatDateTime(batch.endTime) : "En cours"}</p>
             </div>
             {batch.orderNumber && (
               <div>
