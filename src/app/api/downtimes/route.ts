@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { downtimeEventSchema } from "@/lib/validations";
 import { createAuditLog } from "@/lib/audit";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { resolveUserId } from "@/lib/resolve-user";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -28,19 +27,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
     const body = await req.json();
     const parsed = downtimeEventSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
     const d = parsed.data;
-    const sessionUserId = session?.user?.id || body.userId;
-    if (!sessionUserId) {
-      return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
-    }
-    const user = await prisma.user.findUnique({ where: { id: sessionUserId }, select: { id: true } });
-    if (!user) {
-      return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
+    const userId = await resolveUserId(body.userId);
+    if (!userId) {
+      return NextResponse.json({ error: "Aucun utilisateur trouvé. Veuillez vous reconnecter." }, { status: 401 });
     }
 
     const startTime = new Date(d.startTime);
@@ -55,12 +49,12 @@ export async function POST(req: NextRequest) {
         endTime,
         duration,
         description: d.description || null,
-        createdById: user.id,
+        createdById: userId,
       },
       include: { subCategory: { include: { category: true } } },
     });
 
-    createAuditLog({ userId: user.id, action: "CREATE", entity: "DowntimeEvent", entityId: event.id });
+    createAuditLog({ userId, action: "CREATE", entity: "DowntimeEvent", entityId: event.id });
     return NextResponse.json(event, { status: 201 });
   } catch (err) {
     console.error("[POST /api/downtimes]", err);
@@ -70,7 +64,8 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { id, endTime, duration, description, subCategoryId, userId } = await req.json();
+    const body = await req.json();
+    const { id, endTime, duration, description, subCategoryId } = body;
     if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
 
     const existing = await prisma.downtimeEvent.findUnique({ where: { id } });
@@ -78,6 +73,8 @@ export async function PUT(req: NextRequest) {
 
     const computedEnd = endTime ? new Date(endTime) : null;
     const computedDuration = duration ?? (computedEnd ? (computedEnd.getTime() - existing.startTime.getTime()) / 60000 : existing.duration);
+
+    const userId = await resolveUserId(body.userId);
 
     const event = await prisma.downtimeEvent.update({
       where: { id },

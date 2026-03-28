@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { batchSchema } from "@/lib/validations";
 import { createAuditLog } from "@/lib/audit";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { resolveUserId } from "@/lib/resolve-user";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -42,21 +41,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
     const body = await req.json();
     const parsed = batchSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
     const d = parsed.data;
 
-    // Resolve user from session
-    const sessionUserId = session?.user?.id || body.userId;
-    if (!sessionUserId) {
-      return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
-    }
-    const user = await prisma.user.findUnique({ where: { id: sessionUserId }, select: { id: true } });
-    if (!user) {
-      return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
+    const userId = await resolveUserId(body.userId);
+    if (!userId) {
+      return NextResponse.json({ error: "Aucun utilisateur trouvé. Veuillez vous reconnecter ou contacter l'administrateur." }, { status: 401 });
     }
 
     // Verify product-line compatibility
@@ -67,7 +60,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ce produit n'est pas autorisé sur cette ligne." }, { status: 400 });
     }
 
-    // Verify shift exists
     const shift = await prisma.shift.findUnique({ where: { id: d.shiftId } });
     if (!shift) {
       return NextResponse.json({ error: "Shift introuvable." }, { status: 400 });
@@ -83,12 +75,12 @@ export async function POST(req: NextRequest) {
         orderNumber: d.orderNumber || null,
         comment: d.comment || null,
         status: d.status || "OPEN",
-        createdById: user.id,
+        createdById: userId,
       },
       include: { line: true, product: true, shift: true },
     });
 
-    createAuditLog({ userId: user.id, action: "CREATE", entity: "Batch", entityId: batch.id });
+    createAuditLog({ userId, action: "CREATE", entity: "Batch", entityId: batch.id });
     return NextResponse.json(batch, { status: 201 });
   } catch (err) {
     console.error("[POST /api/production]", err);
@@ -99,8 +91,10 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, lot, lineId, productId, shiftId, date, orderNumber, comment, status, userId } = body;
+    const { id, lot, lineId, productId, shiftId, date, orderNumber, comment, status } = body;
     if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
+
+    const userId = await resolveUserId(body.userId);
 
     const batch = await prisma.batch.update({
       where: { id },
