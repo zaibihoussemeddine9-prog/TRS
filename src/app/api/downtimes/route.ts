@@ -23,10 +23,17 @@ function intervalsOverlap(
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const batchId = searchParams.get("batchId");
+  const lineId = searchParams.get("lineId");
+  const dateFrom = searchParams.get("dateFrom");
 
   try {
+    const where: Record<string, unknown> = {};
+    if (batchId) where.batchId = batchId;
+    if (lineId) where.batch = { lineId };
+    if (dateFrom) where.startTime = { gte: new Date(dateFrom) };
+
     const events = await prisma.downtimeEvent.findMany({
-      where: batchId ? { batchId } : {},
+      where,
       include: {
         batch: { include: { line: true } },
         subCategory: { include: { category: true } },
