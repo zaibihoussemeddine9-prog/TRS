@@ -80,51 +80,90 @@ model PackagingLine {
   code                  String   @unique
   workshopId            String
   lineType              String?
-  defaultSpeed          Float?
-  formatChangeTime      Float?
-  cleaningTime          Float?
-  targetOEE             Float?
   active                Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  workshop         Workshop          @relation(fields: [workshopId], references: [id])
+  workshop          Workshop            @relation(fields: [workshopId], references: [id])
   productionEntries ProductionEntry[]
-  downtimeEntries  DowntimeEntry[]
-  kpiThresholds    KPIThreshold[]
+  downtimeEntries   DowntimeEntry[]
+  kpiThresholds     KPIThreshold[]
+  productLineConfigs ProductLineConfig[]
 
   @@index([workshopId])
   @@index([code])
 }
 
 model Product {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  family    String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  name                  String
+  code                  String   @unique
+  family                String?
+  form                  String?
+  dosage                String?
+  primaryPackaging      String?
+  secondaryPackaging    String?
+  standardLotSize       Float?
+  targetYield           Float?
+  targetRejectRate      Float?
+  targetOEE             Float?
+  qualityConstraints    String?  @db.Text
+  processConstraints    String?  @db.Text
+  planningNotes         String?  @db.Text
+  comments              String?  @db.Text
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  formats           Format[]
-  productionEntries ProductionEntry[]
+  formats            Format[]
+  productionEntries  ProductionEntry[]
+  productLineConfigs ProductLineConfig[]
 }
 
 model Format {
-  id              String   @id @default(cuid())
-  name            String
-  code            String   @unique
-  productId       String
-  unitsPerPack    Int?
-  theoreticalSpeed Float?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  name                  String
+  code                  String   @unique
+  productId             String
+  unitsPerBlister       Int?
+  blistersPerBox        Int?
+  boxesPerCarton        Int?
+  cartonsPerPallet      Int?
+  unitsPerPack          Int?
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  product           Product           @relation(fields: [productId], references: [id])
+  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   productionEntries ProductionEntry[]
 
   @@index([productId])
+}
+
+model ProductLineConfig {
+  id                    String   @id @default(cuid())
+  productId             String
+  lineId                String
+  nominalSpeed          Float?
+  standardSpeed         Float?
+  startupTime           Float?
+  lineEmptyingTime      Float?
+  formatChangeTime      Float?
+  lotChangeTime         Float?
+  cleaningTime          Float?
+  adjustmentTime        Float?
+  targetOEE             Float?
+  comments              String?  @db.Text
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  line    PackagingLine  @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, lineId])
+  @@index([productId])
+  @@index([lineId])
 }
 
 model Shift {

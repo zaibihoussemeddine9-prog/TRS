@@ -14,6 +14,7 @@ async function main() {
   await prisma.kPIThreshold.deleteMany();
   await prisma.downtimeSubCause.deleteMany();
   await prisma.downtimeCause.deleteMany();
+  await prisma.productLineConfig.deleteMany();
   await prisma.format.deleteMany();
   await prisma.product.deleteMany();
   await prisma.team.deleteMany();
@@ -56,12 +57,12 @@ async function main() {
   // LINES
   // ========================
   const lines = await Promise.all([
-    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 1", code: "BL01", workshopId: atelierCondit.id, lineType: "blistereuse", defaultSpeed: 120, formatChangeTime: 30, cleaningTime: 20, targetOEE: 0.85 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 2", code: "BL02", workshopId: atelierCondit.id, lineType: "blistereuse", defaultSpeed: 150, formatChangeTime: 25, cleaningTime: 15, targetOEE: 0.88 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 1", code: "EN01", workshopId: atelierSecond.id, lineType: "encartonneuse", defaultSpeed: 80, formatChangeTime: 20, cleaningTime: 15, targetOEE: 0.82 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 2", code: "EN02", workshopId: atelierSecond.id, lineType: "encartonneuse", defaultSpeed: 100, formatChangeTime: 25, cleaningTime: 20, targetOEE: 0.85 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Sirop", code: "SIR01", workshopId: atelierCondit.id, lineType: "remplisseuse_sirop", defaultSpeed: 60, formatChangeTime: 45, cleaningTime: 40, targetOEE: 0.78 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Tube", code: "TUB01", workshopId: atelierCondit.id, lineType: "remplisseuse_tube", defaultSpeed: 45, formatChangeTime: 35, cleaningTime: 25, targetOEE: 0.80 } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 1", code: "BL01", workshopId: atelierCondit.id, lineType: "blistereuse" } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 2", code: "BL02", workshopId: atelierCondit.id, lineType: "blistereuse" } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 1", code: "EN01", workshopId: atelierSecond.id, lineType: "encartonneuse" } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 2", code: "EN02", workshopId: atelierSecond.id, lineType: "encartonneuse" } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Sirop", code: "SIR01", workshopId: atelierCondit.id, lineType: "remplisseuse_sirop" } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Tube", code: "TUB01", workshopId: atelierCondit.id, lineType: "remplisseuse_tube" } }),
   ]);
 
   // ========================
@@ -84,21 +85,32 @@ async function main() {
   // PRODUCTS & FORMATS
   // ========================
   const products = await Promise.all([
-    prisma.product.create({ data: { name: "Amoxicilline 500mg", code: "AMX500", family: "Antibiotiques" } }),
-    prisma.product.create({ data: { name: "Paracétamol 1000mg", code: "PAR1000", family: "Antalgiques" } }),
-    prisma.product.create({ data: { name: "Oméprazole 20mg", code: "OME20", family: "Gastro" } }),
-    prisma.product.create({ data: { name: "Ibuprofène 400mg", code: "IBU400", family: "Anti-inflammatoires" } }),
-    prisma.product.create({ data: { name: "Sirop Toux Adulte 150ml", code: "STA150", family: "Sirops" } }),
+    prisma.product.create({ data: { name: "Amoxicilline 500mg", code: "AMX500", family: "Antibiotiques", form: "Gélule", dosage: "500mg", primaryPackaging: "Blister ALU/PVC", secondaryPackaging: "Étui carton", standardLotSize: 100000, targetYield: 0.98, targetRejectRate: 0.015, targetOEE: 0.85, qualityConstraints: "Stockage < 25°C, à l'abri de l'humidité" } }),
+    prisma.product.create({ data: { name: "Paracétamol 1000mg", code: "PAR1000", family: "Antalgiques", form: "Comprimé", dosage: "1000mg", primaryPackaging: "Blister ALU/ALU", secondaryPackaging: "Étui carton", standardLotSize: 200000, targetYield: 0.99, targetRejectRate: 0.01, targetOEE: 0.88 } }),
+    prisma.product.create({ data: { name: "Oméprazole 20mg", code: "OME20", family: "Gastro", form: "Gélule", dosage: "20mg", primaryPackaging: "Blister ALU/PVC", secondaryPackaging: "Étui carton", standardLotSize: 80000, targetYield: 0.97, targetRejectRate: 0.02, targetOEE: 0.82 } }),
+    prisma.product.create({ data: { name: "Ibuprofène 400mg", code: "IBU400", family: "Anti-inflammatoires", form: "Comprimé", dosage: "400mg", primaryPackaging: "Blister PVC/PVDC", secondaryPackaging: "Étui carton", standardLotSize: 150000, targetYield: 0.98, targetRejectRate: 0.012, targetOEE: 0.85 } }),
+    prisma.product.create({ data: { name: "Sirop Toux Adulte 150ml", code: "STA150", family: "Sirops", form: "Sirop", dosage: "150ml", primaryPackaging: "Flacon PET", secondaryPackaging: "Étui carton", standardLotSize: 50000, targetYield: 0.96, targetRejectRate: 0.025, targetOEE: 0.78 } }),
   ]);
 
   const formats = await Promise.all([
-    prisma.format.create({ data: { name: "Blister 10 cp", code: "BL10", productId: products[0].id, unitsPerPack: 10, theoreticalSpeed: 120 } }),
-    prisma.format.create({ data: { name: "Blister 20 cp", code: "BL20", productId: products[0].id, unitsPerPack: 20, theoreticalSpeed: 100 } }),
-    prisma.format.create({ data: { name: "Boîte 30 cp", code: "BT30", productId: products[1].id, unitsPerPack: 30, theoreticalSpeed: 150 } }),
-    prisma.format.create({ data: { name: "Boîte 16 cp", code: "BT16", productId: products[1].id, unitsPerPack: 16, theoreticalSpeed: 160 } }),
-    prisma.format.create({ data: { name: "Gélule 14", code: "GEL14", productId: products[2].id, unitsPerPack: 14, theoreticalSpeed: 130 } }),
-    prisma.format.create({ data: { name: "Boîte 20 cp", code: "BT20-IBU", productId: products[3].id, unitsPerPack: 20, theoreticalSpeed: 140 } }),
-    prisma.format.create({ data: { name: "Flacon 150ml", code: "FL150", productId: products[4].id, unitsPerPack: 1, theoreticalSpeed: 60 } }),
+    prisma.format.create({ data: { name: "Blister 10 gél.", code: "BL10", productId: products[0].id, unitsPerBlister: 10, blistersPerBox: 3, boxesPerCarton: 12, cartonsPerPallet: 48, unitsPerPack: 30 } }),
+    prisma.format.create({ data: { name: "Blister 20 gél.", code: "BL20", productId: products[0].id, unitsPerBlister: 10, blistersPerBox: 2, boxesPerCarton: 12, cartonsPerPallet: 48, unitsPerPack: 20 } }),
+    prisma.format.create({ data: { name: "Boîte 30 cp", code: "BT30", productId: products[1].id, unitsPerBlister: 10, blistersPerBox: 3, boxesPerCarton: 10, cartonsPerPallet: 60, unitsPerPack: 30 } }),
+    prisma.format.create({ data: { name: "Boîte 16 cp", code: "BT16", productId: products[1].id, unitsPerBlister: 8, blistersPerBox: 2, boxesPerCarton: 15, cartonsPerPallet: 60, unitsPerPack: 16 } }),
+    prisma.format.create({ data: { name: "Gélule 14", code: "GEL14", productId: products[2].id, unitsPerBlister: 7, blistersPerBox: 2, boxesPerCarton: 12, cartonsPerPallet: 48, unitsPerPack: 14 } }),
+    prisma.format.create({ data: { name: "Boîte 20 cp", code: "BT20-IBU", productId: products[3].id, unitsPerBlister: 10, blistersPerBox: 2, boxesPerCarton: 12, cartonsPerPallet: 48, unitsPerPack: 20 } }),
+    prisma.format.create({ data: { name: "Flacon 150ml", code: "FL150", productId: products[4].id, unitsPerPack: 1, boxesPerCarton: 24, cartonsPerPallet: 36 } }),
+  ]);
+
+  // Product-Line configurations (cadences and times per product/line pair)
+  await Promise.all([
+    prisma.productLineConfig.create({ data: { productId: products[0].id, lineId: lines[0].id, nominalSpeed: 120, standardSpeed: 110, startupTime: 15, lineEmptyingTime: 10, formatChangeTime: 30, lotChangeTime: 15, cleaningTime: 20, adjustmentTime: 10, targetOEE: 0.85 } }),
+    prisma.productLineConfig.create({ data: { productId: products[0].id, lineId: lines[1].id, nominalSpeed: 150, standardSpeed: 140, startupTime: 12, lineEmptyingTime: 8, formatChangeTime: 25, lotChangeTime: 12, cleaningTime: 15, adjustmentTime: 8, targetOEE: 0.88 } }),
+    prisma.productLineConfig.create({ data: { productId: products[1].id, lineId: lines[0].id, nominalSpeed: 150, standardSpeed: 140, startupTime: 10, lineEmptyingTime: 8, formatChangeTime: 25, lotChangeTime: 10, cleaningTime: 15, adjustmentTime: 8, targetOEE: 0.88 } }),
+    prisma.productLineConfig.create({ data: { productId: products[1].id, lineId: lines[1].id, nominalSpeed: 160, standardSpeed: 150, startupTime: 10, lineEmptyingTime: 8, formatChangeTime: 20, lotChangeTime: 10, cleaningTime: 12, adjustmentTime: 5, targetOEE: 0.90 } }),
+    prisma.productLineConfig.create({ data: { productId: products[2].id, lineId: lines[0].id, nominalSpeed: 130, standardSpeed: 120, startupTime: 15, lineEmptyingTime: 12, formatChangeTime: 35, lotChangeTime: 15, cleaningTime: 25, adjustmentTime: 10, targetOEE: 0.82 } }),
+    prisma.productLineConfig.create({ data: { productId: products[3].id, lineId: lines[1].id, nominalSpeed: 140, standardSpeed: 130, startupTime: 12, lineEmptyingTime: 10, formatChangeTime: 25, lotChangeTime: 12, cleaningTime: 18, adjustmentTime: 8, targetOEE: 0.85 } }),
+    prisma.productLineConfig.create({ data: { productId: products[4].id, lineId: lines[4].id, nominalSpeed: 60, standardSpeed: 55, startupTime: 20, lineEmptyingTime: 15, formatChangeTime: 45, lotChangeTime: 20, cleaningTime: 40, adjustmentTime: 15, targetOEE: 0.78, comments: "Ligne spécifique sirops — nettoyage long" } }),
   ]);
 
   // ========================
@@ -179,7 +191,7 @@ async function main() {
         const totalStops = unplannedDowntime + formatChangeTime + adjustmentTime + cleaningTime + qualityWaitTime + maintenanceWaitTime + materialWaitTime;
         const actualRunningTime = Math.max(plannedUsefulTime - totalStops, 60);
 
-        const theoreticalSpeed = format.theoreticalSpeed || line.defaultSpeed || 100;
+        const theoreticalSpeed = [120, 150, 130, 160, 140, 60, 45][lineIdx % 7] || 100;
         const actualSpeed = theoreticalSpeed * perfFactor;
         const quantityProduced = Math.round(actualRunningTime * actualSpeed);
         const rejectRate = 0.005 + Math.random() * 0.03;
@@ -290,7 +302,7 @@ async function main() {
             "Réglage effectué par technicien",
           ][Math.floor(Math.random() * 6)],
           responsibility: cause.responsibility,
-          estimatedImpact: Math.round(duration * (line.defaultSpeed || 100)),
+          estimatedImpact: Math.round(duration * 100),
           immediateAction: Math.random() > 0.5 ? "Action corrective immédiate effectuée" : null,
           status: dayOffset > 5 ? "CLOSED" : dayOffset > 2 ? "RESOLVED" : "OPEN",
           createdById: supervisor.id,
