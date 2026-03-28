@@ -1,0 +1,13 @@
+[build]
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "npm run start"
+
+# Runs AFTER build, BEFORE start — applies pending migrations to the production DB
+# Safe: migrate deploy only runs migrations that haven't been applied yet
+# It NEVER generates new migrations, NEVER drops data, NEVER seeds
+preDeployCommand = "npx prisma migrate deploy"
+
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
