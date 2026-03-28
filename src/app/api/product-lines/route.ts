@@ -15,6 +15,15 @@ export async function GET(req: NextRequest) {
       where,
       include: { product: true, line: true },
     });
+
+    // If no ProductLine configured for this line, return all active products
+    // This allows new lines to work immediately without manual configuration
+    if (lineId && links.length === 0) {
+      const allProducts = await prisma.product.findMany({ where: { active: true } });
+      const fallback = allProducts.map((p) => ({ id: `fallback-${p.id}`, productId: p.id, lineId, product: p, line: null, active: true }));
+      return NextResponse.json(fallback);
+    }
+
     return NextResponse.json(links);
   } catch (err) {
     console.error("[GET /api/product-lines]", err);

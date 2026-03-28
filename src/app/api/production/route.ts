@@ -52,12 +52,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Aucun utilisateur trouvé. Veuillez vous reconnecter ou contacter l'administrateur." }, { status: 401 });
     }
 
-    // Verify product-line compatibility
-    const compat = await prisma.productLine.findUnique({
-      where: { productId_lineId: { productId: d.productId, lineId: d.lineId } },
-    });
-    if (!compat) {
-      return NextResponse.json({ error: "Ce produit n'est pas autorisé sur cette ligne." }, { status: 400 });
+    // Verify product-line compatibility (skip check if no ProductLine configured for this line)
+    const lineHasConfig = await prisma.productLine.count({ where: { lineId: d.lineId } });
+    if (lineHasConfig > 0) {
+      const compat = await prisma.productLine.findUnique({
+        where: { productId_lineId: { productId: d.productId, lineId: d.lineId } },
+      });
+      if (!compat) {
+        return NextResponse.json({ error: "Ce produit n'est pas autorisé sur cette ligne." }, { status: 400 });
+      }
     }
 
     const shift = await prisma.shift.findUnique({ where: { id: d.shiftId } });
