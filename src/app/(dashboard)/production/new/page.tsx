@@ -57,7 +57,7 @@ export default function NewProductionPage() {
         body: JSON.stringify({ ...form, userId: session.user.id }),
       });
       const data = await res.json();
-      if (res.ok) router.push("/production");
+      if (res.ok) router.push(`/production/${data.id}`);
       else setError(data.error || "Erreur lors de la création");
     } catch { setError("Erreur réseau"); } finally { setSubmitting(false); }
   }

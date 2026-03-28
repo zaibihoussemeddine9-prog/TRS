@@ -37,16 +37,15 @@ export default function BatchDetailPage() {
     setLoading(true);
     try {
       const [batchRes, declRes, dtRes, shiftRes] = await Promise.all([
-        fetch("/api/production").then((r) => r.json()),
-        fetch(`/api/production-declarations?batchId=${batchId}`).then((r) => r.json()),
-        fetch(`/api/downtimes?batchId=${batchId}`).then((r) => r.json()),
-        fetch("/api/shifts").then((r) => r.json()),
+        fetch(`/api/production/${batchId}`),
+        fetch(`/api/production-declarations?batchId=${batchId}`),
+        fetch(`/api/downtimes?batchId=${batchId}`),
+        fetch("/api/shifts"),
       ]);
-      const found = Array.isArray(batchRes) ? batchRes.find((b: any) => b.id === batchId) : null;
-      setBatch(found);
-      setDeclarations(Array.isArray(declRes) ? declRes : []);
-      setDowntimes(Array.isArray(dtRes) ? dtRes : []);
-      setShifts(Array.isArray(shiftRes) ? shiftRes : []);
+      setBatch(batchRes.ok ? await batchRes.json() : null);
+      setDeclarations(declRes.ok ? await declRes.json() : []);
+      setDowntimes(dtRes.ok ? await dtRes.json() : []);
+      setShifts(shiftRes.ok ? await shiftRes.json() : []);
     } catch {
       /* ignore */
     } finally {
