@@ -27,9 +27,10 @@ export const downtimeEventSchema = z.object({
 
 export const productionDeclarationSchema = z.object({
   batchId: z.string().min(1, "Lot requis"),
+  shiftId: z.string().min(1, "Shift requis"),
+  date: z.string().min(1, "Date requise"),
   quantityProduced: z.coerce.number().min(0).default(0),
-  quantityConform: z.coerce.number().min(0).default(0),
-  quantityRejected: z.coerce.number().min(0).default(0),
+  microStopMinutes: z.coerce.number().min(0).default(0),
   comment: z.string().optional(),
 });
 

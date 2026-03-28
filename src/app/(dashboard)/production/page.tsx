@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Plus, Eye } from "lucide-react";
 
 export default function ProductionPage() {
   const [batches, setBatches] = useState<any[]>([]);
@@ -42,6 +42,11 @@ export default function ProductionPage() {
     { key: "status", header: "Statut", accessor: (r) => <Badge variant={r.status === "OPEN" ? "success" : "default"}>{r.status === "OPEN" ? "Ouvert" : "Clôturé"}</Badge> },
     { key: "downtimes", header: "Arrêts", accessor: (r) => r._count?.downtimeEvents || 0 },
     { key: "decl", header: "Saisies", accessor: (r) => r._count?.productionDeclarations || 0 },
+    { key: "detail", header: "", accessor: (r) => (
+      <Link href={`/production/${r.id}`}>
+        <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /> Voir la fiche</Button>
+      </Link>
+    )},
   ];
 
   return (

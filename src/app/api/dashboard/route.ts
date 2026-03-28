@@ -29,22 +29,21 @@ export async function GET(req: NextRequest) {
 
     const batchStats = batches.map((b) => {
       const totalProduced = b.productionDeclarations.reduce((s, d) => s + d.quantityProduced, 0);
-      const totalConform = b.productionDeclarations.reduce((s, d) => s + d.quantityConform, 0);
+      const totalMicroStops = b.productionDeclarations.reduce((s, d) => s + (d.microStopMinutes || 0), 0);
       const totalDowntime = b.downtimeEvents.reduce((s, e) => s + (e.duration || 0), 0);
-      return { ...b, totalProduced, totalConform, totalDowntime };
+      return { ...b, totalProduced, totalMicroStops, totalDowntime };
     });
 
     const totalProduced = batchStats.reduce((s, b) => s + b.totalProduced, 0);
-    const totalConform = batchStats.reduce((s, b) => s + b.totalConform, 0);
     const totalDowntime = batchStats.reduce((s, b) => s + b.totalDowntime, 0);
-    const totalRejects = totalProduced - totalConform;
-    const quality = totalProduced > 0 ? totalConform / totalProduced : 0;
+    const totalRejects = 0; // Calculated at batch close time
+    const quality = 1; // Will be computed when reject data is available
 
     const lines = await prisma.line.findMany({ where: { active: true } });
     const lineKPIs = lines.map((line) => {
       const lb = batchStats.filter((b) => b.lineId === line.id);
       const prod = lb.reduce((s, b) => s + b.totalProduced, 0);
-      const conf = lb.reduce((s, b) => s + b.totalConform, 0);
+      const conf = lb.reduce((s, b) => s + b.totalProduced, 0);
       return {
         lineId: line.id, lineName: line.name, lineCode: line.code,
         availability: 0, performance: 0,
@@ -63,7 +62,7 @@ export async function GET(req: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, dayBatches]) => {
         const prod = dayBatches.reduce((s, b) => s + b.totalProduced, 0);
-        const conf = dayBatches.reduce((s, b) => s + b.totalConform, 0);
+        const conf = dayBatches.reduce((s, b) => s + b.totalProduced, 0);
         return { date, availability: 0, performance: 0, quality: prod > 0 ? conf / prod : 0, oee: 0 };
       });
 

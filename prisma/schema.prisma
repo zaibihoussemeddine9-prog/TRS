@@ -110,7 +110,8 @@ model Shift {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  batches Batch[]
+  batches                Batch[]
+  productionDeclarations ProductionDeclaration[]
 
   @@index([code])
 }
@@ -208,23 +209,27 @@ model DowntimeEvent {
 }
 
 // ============================================
-// PRODUCTION DECLARATION (quantité par saisie)
+// PRODUCTION DECLARATION (déclaration shift)
 // ============================================
 
 model ProductionDeclaration {
   id               String   @id @default(cuid())
   batchId          String
+  shiftId          String
+  date             DateTime @db.Date
   quantityProduced Float    @default(0)
-  quantityConform  Float    @default(0)
-  quantityRejected Float    @default(0)
+  microStopMinutes Float    @default(0)
   comment          String?
   createdById      String
   createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   batch     Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  shift     Shift @relation(fields: [shiftId], references: [id])
   createdBy User  @relation("ProdDeclCreatedBy", fields: [createdById], references: [id])
 
   @@index([batchId])
+  @@index([shiftId])
 }
 
 // ============================================

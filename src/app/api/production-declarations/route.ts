@@ -11,8 +11,11 @@ export async function GET(req: NextRequest) {
   try {
     const entries = await prisma.productionDeclaration.findMany({
       where: batchId ? { batchId } : {},
-      include: { createdBy: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
+      include: {
+        shift: true,
+        createdBy: { select: { name: true } },
+      },
+      orderBy: { date: "desc" },
     });
     return NextResponse.json(entries);
   } catch (err) {
@@ -30,24 +33,66 @@ export async function POST(req: NextRequest) {
     const d = parsed.data;
     const userId = await resolveUserId(body.userId);
     if (!userId) {
-      return NextResponse.json({ error: "Aucun utilisateur trouvé. Veuillez vous reconnecter." }, { status: 401 });
+      return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
     }
 
     const entry = await prisma.productionDeclaration.create({
       data: {
         batchId: d.batchId,
+        shiftId: d.shiftId,
+        date: new Date(d.date),
         quantityProduced: d.quantityProduced,
-        quantityConform: d.quantityConform,
-        quantityRejected: d.quantityRejected,
+        microStopMinutes: d.microStopMinutes,
         comment: d.comment || null,
         createdById: userId,
       },
+      include: { shift: true },
     });
 
     createAuditLog({ userId, action: "CREATE", entity: "ProductionDeclaration", entityId: entry.id });
     return NextResponse.json(entry, { status: 201 });
   } catch (err) {
     console.error("[POST /api/production-declarations]", err);
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, shiftId, date, quantityProduced, microStopMinutes, comment } = body;
+    if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
+
+    const userId = await resolveUserId(body.userId);
+
+    const entry = await prisma.productionDeclaration.update({
+      where: { id },
+      data: {
+        ...(shiftId !== undefined && { shiftId }),
+        ...(date !== undefined && { date: new Date(date) }),
+        ...(quantityProduced !== undefined && { quantityProduced: Number(quantityProduced) }),
+        ...(microStopMinutes !== undefined && { microStopMinutes: Number(microStopMinutes) }),
+        ...(comment !== undefined && { comment: comment || null }),
+      },
+      include: { shift: true },
+    });
+
+    createAuditLog({ userId, action: "UPDATE", entity: "ProductionDeclaration", entityId: entry.id });
+    return NextResponse.json(entry);
+  } catch (err) {
+    console.error("[PUT /api/production-declarations]", err);
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
+    await prisma.productionDeclaration.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[DELETE /api/production-declarations]", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur" }, { status: 500 });
   }
 }
