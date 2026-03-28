@@ -32,35 +32,31 @@ export function shiftsOverlap(
 }
 
 /**
- * Check if a shift declaration (date + shift times) falls within the batch time window.
+ * Check if a declaration date falls within the batch time window.
+ * Compares dates only (not shift hours).
  * batchEnd = null means lot is still open (no upper bound).
  */
 export function shiftWithinBatch(
   declDate: string,
-  shift: { startTime: string; endTime: string },
+  _shift: { startTime: string; endTime: string },
   batchStart: Date | string,
   batchEnd: Date | string | null
 ): boolean {
-  const date = new Date(declDate);
-  const [sh, sm] = shift.startTime.split(":").map(Number);
-  const [eh, em] = shift.endTime.split(":").map(Number);
+  // Extract date parts only (ignore time)
+  const declDay = new Date(declDate);
+  declDay.setHours(0, 0, 0, 0);
 
-  const shiftStart = new Date(date);
-  shiftStart.setHours(sh, sm, 0, 0);
+  const bStartDay = new Date(batchStart);
+  bStartDay.setHours(0, 0, 0, 0);
 
-  const shiftEnd = new Date(date);
-  shiftEnd.setHours(eh, em, 0, 0);
-  if (shiftEnd <= shiftStart) shiftEnd.setDate(shiftEnd.getDate() + 1); // overnight
+  // Declaration date must be on or after the batch start date
+  if (declDay < bStartDay) return false;
 
-  const bStart = new Date(batchStart);
-
-  // Shift must start on or after batch start
-  if (shiftStart < bStart) return false;
-
-  // If batch has an end time, shift must end on or before it
+  // If batch has an end, declaration date must be on or before the batch end date
   if (batchEnd) {
-    const bEnd = new Date(batchEnd);
-    if (shiftEnd > bEnd) return false;
+    const bEndDay = new Date(batchEnd);
+    bEndDay.setHours(23, 59, 59, 999);
+    if (declDay > bEndDay) return false;
   }
 
   return true;
