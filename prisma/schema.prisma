@@ -11,19 +11,12 @@ datasource db {
 // USERS
 // ============================================
 
-enum UserRole {
-  ADMIN
-  RESPONSABLE
-  OPERATEUR
-  LECTURE_SEULE
-}
-
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
   password  String
-  role      UserRole @default(OPERATEUR)
+  role      String   @default("OPERATEUR")
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -2,22 +2,21 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
-import { UserRole } from "@prisma/client";
 
 declare module "next-auth" {
   interface Session {
-    user: { id: string; email: string; name: string; role: UserRole };
+    user: { id: string; email: string; name: string; role: string };
   }
   interface User {
     id: string;
-    role: UserRole;
+    role: string;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
-    role: UserRole;
+    role: string;
   }
 }
 
@@ -54,8 +53,8 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login" },
 };
 
-export function hasAccess(role: UserRole, module: string): boolean {
-  const perms: Record<string, UserRole[]> = {
+export function hasAccess(role: string, module: string): boolean {
+  const perms: Record<string, string[]> = {
     dashboard: ["ADMIN", "RESPONSABLE", "OPERATEUR", "LECTURE_SEULE"],
     production: ["ADMIN", "RESPONSABLE", "OPERATEUR"],
     downtimes: ["ADMIN", "RESPONSABLE", "OPERATEUR"],
@@ -64,6 +63,6 @@ export function hasAccess(role: UserRole, module: string): boolean {
   return (perms[module] || []).includes(role);
 }
 
-export function canEdit(role: UserRole): boolean {
+export function canEdit(role: string): boolean {
   return role !== "LECTURE_SEULE";
 }
