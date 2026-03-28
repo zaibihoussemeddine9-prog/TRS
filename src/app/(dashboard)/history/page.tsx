@@ -33,10 +33,10 @@ export default function HistoryPage() {
   }, [filterLine, filterFrom, filterTo]);
 
   function exportCSV() {
-    const headers = ["Date", "Lot", "Ligne", "Produit", "Statut", "Arrêts", "Shifts"];
+    const headers = ["Date", "Lot", "Ligne", "Produit", "Shift", "Statut", "Arrêts", "Saisies"];
     const rows = batches.map((b: any) => [
-      formatDate(b.date), b.lot, b.line?.name, b.product?.name, b.status,
-      b._count?.downtimeEvents || 0, b._count?.shiftProductions || 0,
+      formatDate(b.date), b.lot, b.line?.name, b.product?.name, b.shift?.name || "",
+      b.status, b._count?.downtimeEvents || 0, b._count?.productionDeclarations || 0,
     ]);
     const csv = [headers, ...rows].map((r) => r.join(";")).join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -50,9 +50,10 @@ export default function HistoryPage() {
     { key: "lot", header: "Lot", sortable: true, sortValue: (r) => r.lot, accessor: (r) => <span className="font-mono">{r.lot}</span> },
     { key: "line", header: "Ligne", accessor: (r) => r.line?.name || "—" },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name || "—" },
+    { key: "shift", header: "Shift", accessor: (r) => r.shift?.name || "—" },
     { key: "status", header: "Statut", accessor: (r) => <Badge variant={r.status === "OPEN" ? "success" : "default"}>{r.status === "OPEN" ? "Ouvert" : "Clôturé"}</Badge> },
     { key: "downtimes", header: "Arrêts", accessor: (r) => r._count?.downtimeEvents || 0 },
-    { key: "shifts", header: "Shifts", accessor: (r) => r._count?.shiftProductions || 0 },
+    { key: "decl", header: "Saisies", accessor: (r) => r._count?.productionDeclarations || 0 },
   ];
 
   return (

@@ -38,10 +38,10 @@ export default function ProductionPage() {
     { key: "date", header: "Date", sortable: true, sortValue: (r) => r.date, accessor: (r) => formatDate(r.date) },
     { key: "line", header: "Ligne", accessor: (r) => r.line?.name || "—" },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name || "—" },
+    { key: "shift", header: "Shift", accessor: (r) => r.shift?.name || "—" },
     { key: "status", header: "Statut", accessor: (r) => <Badge variant={r.status === "OPEN" ? "success" : "default"}>{r.status === "OPEN" ? "Ouvert" : "Clôturé"}</Badge> },
     { key: "downtimes", header: "Arrêts", accessor: (r) => r._count?.downtimeEvents || 0 },
-    { key: "shifts", header: "Shifts", accessor: (r) => r._count?.shiftProductions || 0 },
-    { key: "actions", header: "", accessor: (r) => <Link href={`/production/${r.id}`} className="text-sm text-blue-600 hover:underline">Détails</Link> },
+    { key: "decl", header: "Saisies", accessor: (r) => r._count?.productionDeclarations || 0 },
   ];
 
   return (
@@ -59,7 +59,7 @@ export default function ProductionPage() {
         <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full sm:w-40" />
       </div>
       {loading ? <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div> : (
-        <DataTable data={batches} columns={columns} pageSize={15} searchable searchFn={(r, q) => r.lot.toLowerCase().includes(q) || (r.product?.name || "").toLowerCase().includes(q) || (r.line?.name || "").toLowerCase().includes(q)} />
+        <DataTable data={batches} columns={columns} pageSize={15} searchable searchFn={(r, q) => r.lot.toLowerCase().includes(q) || (r.product?.name || "").toLowerCase().includes(q)} />
       )}
     </div>
   );

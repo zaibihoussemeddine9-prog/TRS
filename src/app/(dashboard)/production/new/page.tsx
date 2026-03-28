@@ -12,33 +12,53 @@ export default function NewProductionPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [lines, setLines] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [compatibleProducts, setCompatibleProducts] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ date: "", lineId: "", productId: "", lot: "", orderNumber: "", comment: "" });
+  const [form, setForm] = useState({ date: "", lineId: "", productId: "", shiftId: "", lot: "", orderNumber: "", comment: "" });
 
   useEffect(() => {
     Promise.all([
       fetch("/api/lines").then((r) => r.json()),
-      fetch("/api/products").then((r) => r.json()),
-    ]).then(([l, p]) => { setLines(l); setProducts(p); }).catch(() => {});
+      fetch("/api/shifts").then((r) => r.json()),
+    ]).then(([l, s]) => { setLines(l); setShifts(s); }).catch(() => {});
   }, []);
 
-  const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  // When line changes, load compatible products
+  useEffect(() => {
+    if (!form.lineId) { setCompatibleProducts([]); return; }
+    fetch(`/api/product-lines?lineId=${form.lineId}`)
+      .then((r) => r.json())
+      .then((links) => setCompatibleProducts(links.map((pl: any) => pl.product)))
+      .catch(() => setCompatibleProducts([]));
+  }, [form.lineId]);
+
+  const set = (k: string, v: string) => {
+    setForm((p) => {
+      const next = { ...p, [k]: v };
+      if (k === "lineId") next.productId = ""; // reset product when line changes
+      return next;
+    });
+  };
 
   async function handleSubmit() {
-    if (!form.date || !form.lineId || !form.productId || !form.lot.trim()) {
-      setError("Date, ligne, produit et lot sont requis"); return;
+    if (!form.date || !form.lineId || !form.productId || !form.shiftId || !form.lot.trim()) {
+      setError("Date, ligne, produit, shift et lot sont requis"); return;
+    }
+    if (!session?.user?.id) {
+      setError("Utilisateur non reconnu. Veuillez vous reconnecter."); return;
     }
     setSubmitting(true); setError("");
     try {
       const res = await fetch("/api/production", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, userId: session?.user?.id }),
+        body: JSON.stringify({ ...form, userId: session.user.id }),
       });
+      const data = await res.json();
       if (res.ok) router.push("/production");
-      else { const data = await res.json(); setError(data.error || "Erreur"); }
+      else setError(data.error || "Erreur lors de la création");
     } catch { setError("Erreur réseau"); } finally { setSubmitting(false); }
   }
 
@@ -55,8 +75,16 @@ export default function NewProductionPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="N° Lot *" value={form.lot} onChange={(e) => set("lot", e.target.value)} />
             <Input label="Date *" type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
-            <Select label="Ligne *" options={lines.map((l) => ({ value: l.id, label: l.name }))} placeholder="Sélectionner" value={form.lineId} onChange={(e) => set("lineId", e.target.value)} />
-            <Select label="Produit *" options={products.map((p) => ({ value: p.id, label: p.name }))} placeholder="Sélectionner" value={form.productId} onChange={(e) => set("productId", e.target.value)} />
+            <Select label="Ligne *" options={lines.map((l) => ({ value: l.id, label: l.name }))} placeholder="Sélectionner une ligne" value={form.lineId} onChange={(e) => set("lineId", e.target.value)} />
+            <Select
+              label="Produit *"
+              options={compatibleProducts.map((p: any) => ({ value: p.id, label: `${p.name} (${p.code})` }))}
+              placeholder={form.lineId ? "Sélectionner un produit" : "Choisir d'abord une ligne"}
+              value={form.productId}
+              onChange={(e) => set("productId", e.target.value)}
+              disabled={!form.lineId}
+            />
+            <Select label="Shift *" options={shifts.map((s: any) => ({ value: s.id, label: `${s.name} (${s.startTime}–${s.endTime})` }))} placeholder="Sélectionner un shift" value={form.shiftId} onChange={(e) => set("shiftId", e.target.value)} />
             <Input label="N° OF / OC" value={form.orderNumber} onChange={(e) => set("orderNumber", e.target.value)} />
           </div>
         </CardContent>

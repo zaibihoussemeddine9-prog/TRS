@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { downtimeEventSchema } from "@/lib/validations";
 import { createAuditLog } from "@/lib/audit";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,7 +14,7 @@ export async function GET(req: NextRequest) {
       where: batchId ? { batchId } : {},
       include: {
         batch: { include: { line: true } },
-        downtimeType: { include: { subCategory: { include: { category: true } } } },
+        subCategory: { include: { category: true } },
         createdBy: { select: { name: true } },
       },
       orderBy: { startTime: "desc" },
@@ -26,22 +28,19 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
     const body = await req.json();
     const parsed = downtimeEventSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
     const d = parsed.data;
-    const userId = body.userId;
-
-    let resolvedUserId: string | null = null;
-    if (userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-      if (user) resolvedUserId = user.id;
+    const sessionUserId = session?.user?.id || body.userId;
+    if (!sessionUserId) {
+      return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
     }
-    if (!resolvedUserId) {
-      const fallback = await prisma.user.findFirst({ where: { role: "ADMIN", active: true }, select: { id: true } });
-      if (!fallback) return NextResponse.json({ error: "Aucun utilisateur valide" }, { status: 400 });
-      resolvedUserId = fallback.id;
+    const user = await prisma.user.findUnique({ where: { id: sessionUserId }, select: { id: true } });
+    if (!user) {
+      return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
     }
 
     const startTime = new Date(d.startTime);
@@ -51,19 +50,17 @@ export async function POST(req: NextRequest) {
     const event = await prisma.downtimeEvent.create({
       data: {
         batchId: d.batchId,
-        downtimeTypeId: d.downtimeTypeId,
+        subCategoryId: d.subCategoryId,
         startTime,
         endTime,
         duration,
         description: d.description || null,
-        createdById: resolvedUserId,
+        createdById: user.id,
       },
-      include: {
-        downtimeType: { include: { subCategory: { include: { category: true } } } },
-      },
+      include: { subCategory: { include: { category: true } } },
     });
 
-    createAuditLog({ userId: resolvedUserId, action: "CREATE", entity: "DowntimeEvent", entityId: event.id });
+    createAuditLog({ userId: user.id, action: "CREATE", entity: "DowntimeEvent", entityId: event.id });
     return NextResponse.json(event, { status: 201 });
   } catch (err) {
     console.error("[POST /api/downtimes]", err);
@@ -73,7 +70,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { id, endTime, duration, description, downtimeTypeId, userId } = await req.json();
+    const { id, endTime, duration, description, subCategoryId, userId } = await req.json();
     if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
 
     const existing = await prisma.downtimeEvent.findUnique({ where: { id } });
@@ -88,7 +85,7 @@ export async function PUT(req: NextRequest) {
         ...(computedEnd && { endTime: computedEnd }),
         ...(computedDuration !== undefined && { duration: computedDuration }),
         ...(description !== undefined && { description: description || null }),
-        ...(downtimeTypeId !== undefined && { downtimeTypeId }),
+        ...(subCategoryId !== undefined && { subCategoryId }),
       },
     });
 

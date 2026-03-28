@@ -6,17 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Plus, Pencil, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
 
-interface DType { id: string; name: string; code: string; sortOrder: number; active: boolean; }
-interface SubCat { id: string; name: string; code: string; sortOrder: number; active: boolean; downtimeTypes: DType[]; }
+interface SubCat { id: string; name: string; code: string; sortOrder: number; active: boolean; }
 interface Cat { id: string; name: string; code: string; color: string; sortOrder: number; active: boolean; subCategories: SubCat[]; }
 
 const EMPTY_CAT = { name: "", code: "", color: "#3b82f6" };
 const EMPTY_SUB = { name: "", code: "", categoryId: "" };
-const EMPTY_TYPE = { name: "", code: "", subCategoryId: "" };
 
 export default function AdminCausesPage() {
   const { data: session } = useSession();
@@ -24,11 +21,10 @@ export default function AdminCausesPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
-  const [modalLevel, setModalLevel] = useState<"category" | "subcategory" | "type">("category");
+  const [modalLevel, setModalLevel] = useState<"category" | "subcategory">("category");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formCat, setFormCat] = useState(EMPTY_CAT);
   const [formSub, setFormSub] = useState(EMPTY_SUB);
-  const [formType, setFormType] = useState(EMPTY_TYPE);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -46,19 +42,16 @@ export default function AdminCausesPage() {
 
   function openCreateCat() { setModalLevel("category"); setEditingId(null); setFormCat(EMPTY_CAT); setError(""); setShowModal(true); }
   function openCreateSub(categoryId: string) { setModalLevel("subcategory"); setEditingId(null); setFormSub({ ...EMPTY_SUB, categoryId }); setError(""); setShowModal(true); }
-  function openCreateType(subCategoryId: string) { setModalLevel("type"); setEditingId(null); setFormType({ ...EMPTY_TYPE, subCategoryId }); setError(""); setShowModal(true); }
 
   function openEditCat(c: Cat) { setModalLevel("category"); setEditingId(c.id); setFormCat({ name: c.name, code: c.code, color: c.color }); setError(""); setShowModal(true); }
   function openEditSub(s: SubCat, categoryId: string) { setModalLevel("subcategory"); setEditingId(s.id); setFormSub({ name: s.name, code: s.code, categoryId }); setError(""); setShowModal(true); }
-  function openEditType(t: DType, subCategoryId: string) { setModalLevel("type"); setEditingId(t.id); setFormType({ name: t.name, code: t.code, subCategoryId }); setError(""); setShowModal(true); }
 
   async function handleSubmit() {
     let name = "", code = "";
     let payload: Record<string, unknown> = { level: modalLevel, userId: session?.user?.id };
 
     if (modalLevel === "category") { name = formCat.name; code = formCat.code; payload = { ...payload, name, code, color: formCat.color }; }
-    else if (modalLevel === "subcategory") { name = formSub.name; code = formSub.code; payload = { ...payload, name, code, categoryId: formSub.categoryId }; }
-    else { name = formType.name; code = formType.code; payload = { ...payload, name, code, subCategoryId: formType.subCategoryId }; }
+    else { name = formSub.name; code = formSub.code; payload = { ...payload, name, code, categoryId: formSub.categoryId }; }
 
     if (!name.trim() || !code.trim()) { setError("Nom et code requis"); return; }
     if (editingId) payload.id = editingId;
@@ -77,14 +70,14 @@ export default function AdminCausesPage() {
     } catch { setError("Erreur réseau"); } finally { setSubmitting(false); }
   }
 
-  const levelLabels = { category: "catégorie", subcategory: "sous-catégorie", type: "type d'arrêt" };
+  const levelLabels = { category: "catégorie", subcategory: "sous-catégorie" };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Types d'arrêt</h1>
-          <p className="text-sm text-slate-500">Configuration hiérarchique : Catégorie → Sous-catégorie → Type</p>
+          <h1 className="text-2xl font-bold text-slate-900">Causes d'arrêt</h1>
+          <p className="text-sm text-slate-500">Configuration hiérarchique : Catégorie → Sous-catégorie</p>
         </div>
         <Button onClick={openCreateCat}><Plus className="h-4 w-4" /> Nouvelle catégorie</Button>
       </div>
@@ -102,37 +95,19 @@ export default function AdminCausesPage() {
                   <div className="h-3 w-3 rounded-full" style={{ backgroundColor: cat.color }} />
                   <span className="font-semibold text-slate-900">{cat.name}</span>
                   <span className="font-mono text-xs text-slate-500">{cat.code}</span>
-                  <Badge variant="default">{cat.subCategories.length} sous-cat.</Badge>
+                  <Badge variant="default">{cat.subCategories.length} sous-catégorie{cat.subCategories.length > 1 ? "s" : ""}</Badge>
                 </div>
                 <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEditCat(cat); }}><Pencil className="h-4 w-4" /></Button>
               </div>
               {expanded.has(cat.id) && (
                 <div className="border-t px-4 pb-3 space-y-2">
                   {cat.subCategories.map((sub) => (
-                    <div key={sub.id}>
-                      <div className="flex items-center justify-between py-2 pl-8">
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => toggle(sub.id)}>
-                          {expanded.has(sub.id) ? <ChevronDown className="h-3 w-3 text-slate-400" /> : <ChevronRight className="h-3 w-3 text-slate-400" />}
-                          <span className="text-sm font-medium text-slate-700">{sub.name}</span>
-                          <span className="font-mono text-xs text-slate-400">{sub.code}</span>
-                          <Badge variant="info">{sub.downtimeTypes.length} types</Badge>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => openEditSub(sub, cat.id)}><Pencil className="h-3 w-3" /></Button>
+                    <div key={sub.id} className="flex items-center justify-between py-2 pl-8">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-700">{sub.name}</span>
+                        <span className="font-mono text-xs text-slate-400">{sub.code}</span>
                       </div>
-                      {expanded.has(sub.id) && (
-                        <div className="pl-16 space-y-1 pb-2">
-                          {sub.downtimeTypes.map((dt) => (
-                            <div key={dt.id} className="flex items-center justify-between rounded border border-slate-100 px-3 py-1.5 text-sm">
-                              <div className="flex items-center gap-2">
-                                <span>{dt.name}</span>
-                                <span className="font-mono text-xs text-slate-400">{dt.code}</span>
-                              </div>
-                              <Button variant="ghost" size="sm" onClick={() => openEditType(dt, sub.id)}><Pencil className="h-3 w-3" /></Button>
-                            </div>
-                          ))}
-                          <Button variant="ghost" size="sm" onClick={() => openCreateType(sub.id)} className="text-blue-600"><Plus className="h-3 w-3" /> Ajouter un type</Button>
-                        </div>
-                      )}
+                      <Button variant="ghost" size="sm" onClick={() => openEditSub(sub, cat.id)}><Pencil className="h-3 w-3" /></Button>
                     </div>
                   ))}
                   <div className="pl-8 pt-1">
@@ -159,12 +134,6 @@ export default function AdminCausesPage() {
             <>
               <Input label="Nom *" value={formSub.name} onChange={(e) => setFormSub((p) => ({ ...p, name: e.target.value }))} disabled={submitting} />
               <Input label="Code *" value={formSub.code} onChange={(e) => setFormSub((p) => ({ ...p, code: e.target.value }))} disabled={submitting} />
-            </>
-          )}
-          {modalLevel === "type" && (
-            <>
-              <Input label="Nom *" value={formType.name} onChange={(e) => setFormType((p) => ({ ...p, name: e.target.value }))} disabled={submitting} />
-              <Input label="Code *" value={formType.code} onChange={(e) => setFormType((p) => ({ ...p, code: e.target.value }))} disabled={submitting} />
             </>
           )}
           <div className="flex justify-end gap-3 border-t pt-4">

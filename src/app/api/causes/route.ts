@@ -9,9 +9,6 @@ export async function GET() {
       include: {
         subCategories: {
           where: { active: true },
-          include: {
-            downtimeTypes: { where: { active: true }, orderBy: { sortOrder: "asc" } },
-          },
           orderBy: { sortOrder: "asc" },
         },
       },
@@ -27,7 +24,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { level, name, code, categoryId, subCategoryId, color, sortOrder, userId } = body;
+    const { level, name, code, categoryId, color, sortOrder, userId } = body;
 
     if (!name || !code) return NextResponse.json({ error: "Nom et code requis" }, { status: 400 });
 
@@ -52,18 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(sub, { status: 201 });
     }
 
-    if (level === "type") {
-      if (!subCategoryId) return NextResponse.json({ error: "Sous-catégorie requise" }, { status: 400 });
-      const exists = await prisma.downtimeType.findUnique({ where: { code } });
-      if (exists) return NextResponse.json({ error: `Code "${code}" déjà utilisé` }, { status: 409 });
-      const type = await prisma.downtimeType.create({
-        data: { name, code, subCategoryId, sortOrder: sortOrder || 0 },
-      });
-      createAuditLog({ userId, action: "CREATE", entity: "DowntimeType", entityId: type.id });
-      return NextResponse.json(type, { status: 201 });
-    }
-
-    return NextResponse.json({ error: "Niveau invalide (category/subcategory/type)" }, { status: 400 });
+    return NextResponse.json({ error: "Niveau invalide (category/subcategory)" }, { status: 400 });
   } catch (err) {
     console.error("[POST /api/causes]", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur" }, { status: 500 });
@@ -85,17 +71,10 @@ export async function PUT(req: NextRequest) {
 
     if (level === "category") {
       const item = await prisma.downtimeCategory.update({ where: { id }, data });
-      createAuditLog({ userId, action: "UPDATE", entity: "DowntimeCategory", entityId: item.id });
       return NextResponse.json(item);
     }
     if (level === "subcategory") {
       const item = await prisma.downtimeSubCategory.update({ where: { id }, data });
-      createAuditLog({ userId, action: "UPDATE", entity: "DowntimeSubCategory", entityId: item.id });
-      return NextResponse.json(item);
-    }
-    if (level === "type") {
-      const item = await prisma.downtimeType.update({ where: { id }, data });
-      createAuditLog({ userId, action: "UPDATE", entity: "DowntimeType", entityId: item.id });
       return NextResponse.json(item);
     }
 

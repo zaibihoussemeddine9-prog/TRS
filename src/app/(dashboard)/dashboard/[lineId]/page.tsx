@@ -50,7 +50,7 @@ export default function LineDashboardPage() {
   // Downtime pareto by type
   const typeMap = new Map<string, number>();
   downtimes.forEach((d: any) => {
-    const name = d.downtimeType?.name || "Inconnu";
+    const name = d.subCategory?.name || "Inconnu";
     typeMap.set(name, (typeMap.get(name) || 0) + (d.duration || 0));
   });
   const typeParetoData = Array.from(typeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
@@ -58,7 +58,7 @@ export default function LineDashboardPage() {
   // Downtime by category
   const catMap = new Map<string, number>();
   downtimes.forEach((d: any) => {
-    const name = d.downtimeType?.subCategory?.category?.name || "Autre";
+    const name = d.subCategory?.category?.name || "Autre";
     catMap.set(name, (catMap.get(name) || 0) + (d.duration || 0));
   });
   const catData = Array.from(catMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
@@ -79,7 +79,7 @@ export default function LineDashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Pareto des arrêts par type</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold">Pareto des arrêts par sous-catégorie</h3></CardHeader>
           <CardContent><ParetoChart data={typeParetoData} /></CardContent>
         </Card>
         <Card>
@@ -115,9 +115,9 @@ export default function LineDashboardPage() {
             {downtimes.slice(0, 10).map((d: any) => (
               <div key={d.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded border p-2 text-sm">
                 <div>
-                  <p className="font-medium">{d.downtimeType?.name || "Inconnu"}</p>
+                  <p className="font-medium">{d.subCategory?.name || "Inconnu"}</p>
                   <p className="text-xs text-slate-500">
-                    {d.downtimeType?.subCategory?.category?.name || ""}{d.downtimeType?.subCategory?.name ? ` / ${d.downtimeType.subCategory.name}` : ""}
+                    {d.subCategory?.category?.name || ""}
                     {d.startTime ? ` — ${new Date(d.startTime).toLocaleString("fr-FR")}` : ""}
                   </p>
                 </div>

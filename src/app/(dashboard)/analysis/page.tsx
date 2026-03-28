@@ -16,15 +16,15 @@ export default function AnalysisPage() {
   // By category
   const catMap = new Map<string, number>();
   events.forEach((e: any) => {
-    const name = e.downtimeType?.subCategory?.category?.name || "Autre";
+    const name = e.subCategory?.category?.name || "Autre";
     catMap.set(name, (catMap.get(name) || 0) + (e.duration || 0));
   });
   const catData = Array.from(catMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
 
-  // By type
+  // By sub-category
   const typeMap = new Map<string, number>();
   events.forEach((e: any) => {
-    const name = e.downtimeType?.name || "Inconnu";
+    const name = e.subCategory?.name || "Inconnu";
     typeMap.set(name, (typeMap.get(name) || 0) + (e.duration || 0));
   });
   const typeData = Array.from(typeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
@@ -47,7 +47,7 @@ export default function AnalysisPage() {
       </div>
       {loading ? <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div> : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card><CardHeader><h3 className="text-lg font-semibold">Pareto par type d'arrêt</h3></CardHeader><CardContent><ParetoChart data={typeData} /></CardContent></Card>
+          <Card><CardHeader><h3 className="text-lg font-semibold">Pareto par sous-catégorie</h3></CardHeader><CardContent><ParetoChart data={typeData} /></CardContent></Card>
           <Card><CardHeader><h3 className="text-lg font-semibold">Pareto par ligne</h3></CardHeader><CardContent><ParetoChart data={lineData} /></CardContent></Card>
           <Card><CardHeader><h3 className="text-lg font-semibold">Répartition par catégorie</h3></CardHeader><CardContent><DowntimePieChart data={catData} /></CardContent></Card>
         </div>

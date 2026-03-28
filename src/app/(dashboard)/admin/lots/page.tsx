@@ -11,13 +11,14 @@ import { Select } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, CheckCircle } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
-const EMPTY = { lot: "", lineId: "", productId: "", date: "", orderNumber: "", comment: "", status: "OPEN" };
+const EMPTY = { lot: "", lineId: "", productId: "", shiftId: "", date: "", orderNumber: "", comment: "", status: "OPEN" };
 
 export default function AdminLotsPage() {
   const { data: session } = useSession();
   const [batches, setBatches] = useState<any[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -29,12 +30,13 @@ export default function AdminLotsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [bRes, lRes, pRes] = await Promise.all([
-        fetch("/api/production"), fetch("/api/lines"), fetch("/api/products"),
+      const [bRes, lRes, pRes, sRes] = await Promise.all([
+        fetch("/api/production"), fetch("/api/lines"), fetch("/api/products"), fetch("/api/shifts"),
       ]);
       if (bRes.ok) setBatches(await bRes.json());
       if (lRes.ok) setLines(await lRes.json());
       if (pRes.ok) setProducts(await pRes.json());
+      if (sRes.ok) setShifts(await sRes.json());
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -44,7 +46,7 @@ export default function AdminLotsPage() {
   function openEdit(b: any) {
     setEditingId(b.id);
     setForm({
-      lot: b.lot, lineId: b.lineId, productId: b.productId,
+      lot: b.lot, lineId: b.lineId, productId: b.productId, shiftId: b.shiftId || "",
       date: new Date(b.date).toISOString().split("T")[0],
       orderNumber: b.orderNumber || "", comment: b.comment || "", status: b.status,
     });
@@ -52,8 +54,8 @@ export default function AdminLotsPage() {
   }
 
   async function handleSubmit() {
-    if (!form.lot.trim() || !form.lineId || !form.productId || !form.date) {
-      setError("Lot, ligne, produit et date sont requis"); return;
+    if (!form.lot.trim() || !form.lineId || !form.productId || !form.date || !form.shiftId) {
+      setError("Lot, ligne, produit, date et shift sont requis"); return;
     }
     setSubmitting(true); setError("");
     try {
@@ -87,10 +89,11 @@ export default function AdminLotsPage() {
     { key: "lot", header: "N° Lot", sortable: true, sortValue: (r) => r.lot, accessor: (r) => <span className="font-mono font-semibold">{r.lot}</span> },
     { key: "line", header: "Ligne", accessor: (r) => r.line?.name || "—" },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name || "—" },
+    { key: "shift", header: "Shift", accessor: (r) => r.shift?.name || "—" },
     { key: "date", header: "Date", sortable: true, sortValue: (r) => r.date, accessor: (r) => formatDate(r.date) },
     { key: "status", header: "Statut", accessor: (r) => <Badge variant={r.status === "OPEN" ? "success" : "default"}>{r.status === "OPEN" ? "Ouvert" : "Clôturé"}</Badge> },
     { key: "downtimes", header: "Arrêts", accessor: (r) => r._count?.downtimeEvents || 0 },
-    { key: "shifts", header: "Shifts", accessor: (r) => r._count?.shiftProductions || 0 },
+    { key: "decl", header: "Saisies", accessor: (r) => r._count?.productionDeclarations || 0 },
     { key: "actions", header: "", accessor: (r) => (
       <div className="flex gap-1">
         <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
@@ -123,6 +126,7 @@ export default function AdminLotsPage() {
             <Select label="Ligne *" options={lines.map((l: any) => ({ value: l.id, label: l.name }))} placeholder="Sélectionner" value={form.lineId} onChange={(e) => set("lineId", e.target.value)} disabled={submitting} />
             <Select label="Produit *" options={products.map((p: any) => ({ value: p.id, label: p.name }))} placeholder="Sélectionner" value={form.productId} onChange={(e) => set("productId", e.target.value)} disabled={submitting} />
           </div>
+          <Select label="Shift *" options={shifts.map((s: any) => ({ value: s.id, label: `${s.name} (${s.startTime}–${s.endTime})` }))} placeholder="Sélectionner un shift" value={form.shiftId} onChange={(e) => set("shiftId", e.target.value)} disabled={submitting} />
           <Input label="N° OF / OC" value={form.orderNumber} onChange={(e) => set("orderNumber", e.target.value)} disabled={submitting} />
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Commentaire</label>
