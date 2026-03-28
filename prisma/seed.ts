@@ -30,9 +30,9 @@ async function main() {
   if (productCount === 0) {
     const line = await prisma.line.findFirst();
     const [prodA, prodB, prodC] = await Promise.all([
-      prisma.product.create({ data: { name: "Produit A", code: "PROD-A", family: "Antibiotiques", form: "Comprimé", dosage: "500mg", nominalSpeed: 120, targetOEE: 0.85, unitsPerPack: 30 } }),
-      prisma.product.create({ data: { name: "Produit B", code: "PROD-B", family: "Antalgiques", form: "Gélule", dosage: "1000mg", nominalSpeed: 150, targetOEE: 0.88, unitsPerPack: 20 } }),
-      prisma.product.create({ data: { name: "Produit C", code: "PROD-C", family: "Sirops", form: "Sirop", dosage: "150ml", nominalSpeed: 60, targetOEE: 0.78, unitsPerPack: 1 } }),
+      prisma.product.create({ data: { name: "Produit A 500mg", code: "PROD-A", family: "Antibiotiques", form: "Comprimé", nominalSpeed: 120, targetOEE: 0.85, unitsPerPack: 30 } }),
+      prisma.product.create({ data: { name: "Produit B 1000mg", code: "PROD-B", family: "Antalgiques", form: "Gélule", nominalSpeed: 150, targetOEE: 0.88, unitsPerPack: 20 } }),
+      prisma.product.create({ data: { name: "Produit C 150ml", code: "PROD-C", family: "Sirops", form: "Sirop", nominalSpeed: 60, targetOEE: 0.78, unitsPerPack: 1 } }),
     ]);
     if (line) {
       await prisma.productLine.createMany({
@@ -61,6 +61,35 @@ async function main() {
     });
   }
   console.log("  4 shifts OK");
+
+  // ===== REFERENCE LISTS: upsert =====
+  const refData = [
+    { type: "FAMILY", value: "Antibiotiques", label: "Antibiotiques" },
+    { type: "FAMILY", value: "Antalgiques", label: "Antalgiques" },
+    { type: "FAMILY", value: "Anti-inflammatoires", label: "Anti-inflammatoires" },
+    { type: "FAMILY", value: "Gastro", label: "Gastro-entérologie" },
+    { type: "FAMILY", value: "Sirops", label: "Sirops" },
+    { type: "FAMILY", value: "Dermatologie", label: "Dermatologie" },
+    { type: "FAMILY", value: "Cardiovasculaire", label: "Cardiovasculaire" },
+    { type: "FAMILY", value: "Autre", label: "Autre" },
+    { type: "FORM", value: "Comprimé", label: "Comprimé" },
+    { type: "FORM", value: "Gélule", label: "Gélule" },
+    { type: "FORM", value: "Sirop", label: "Sirop" },
+    { type: "FORM", value: "Pommade", label: "Pommade" },
+    { type: "FORM", value: "Crème", label: "Crème" },
+    { type: "FORM", value: "Solution", label: "Solution" },
+    { type: "FORM", value: "Injectable", label: "Injectable" },
+    { type: "FORM", value: "Autre", label: "Autre" },
+  ];
+  for (let i = 0; i < refData.length; i++) {
+    const r = refData[i];
+    await prisma.referenceList.upsert({
+      where: { type_value: { type: r.type, value: r.value } },
+      update: { label: r.label },
+      create: { ...r, sortOrder: i + 1 },
+    });
+  }
+  console.log("  Référentiels OK");
 
   // ===== DOWNTIME CATEGORIES: upsert =====
   const categories = [

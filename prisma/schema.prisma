@@ -62,7 +62,7 @@ model Product {
   code             String   @unique
   family           String?
   form             String?
-  dosage           String?
+  laboratory       String?
   unitsPerPack     Int?
   nominalSpeed     Float?
   targetOEE        Float?
@@ -267,4 +267,22 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// ============================================
+// REFERENCE LISTS (Familles, Formes, Laboratoires)
+// ============================================
+
+model ReferenceList {
+  id        String   @id @default(cuid())
+  type      String
+  value     String
+  label     String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, value])
+  @@index([type])
 }

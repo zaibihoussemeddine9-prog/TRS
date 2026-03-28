@@ -11,30 +11,8 @@ import { Select } from "@/components/ui/select";
 import { formatPercent } from "@/lib/trs-calculations";
 import { Plus, Pencil, CheckCircle } from "lucide-react";
 
-const FAMILIES = [
-  { value: "Antibiotiques", label: "Antibiotiques" },
-  { value: "Antalgiques", label: "Antalgiques" },
-  { value: "Anti-inflammatoires", label: "Anti-inflammatoires" },
-  { value: "Gastro", label: "Gastro-entérologie" },
-  { value: "Sirops", label: "Sirops" },
-  { value: "Dermatologie", label: "Dermatologie" },
-  { value: "Cardiovasculaire", label: "Cardiovasculaire" },
-  { value: "Autre", label: "Autre" },
-];
-
-const FORMS = [
-  { value: "Comprimé", label: "Comprimé" },
-  { value: "Gélule", label: "Gélule" },
-  { value: "Sirop", label: "Sirop" },
-  { value: "Pommade", label: "Pommade" },
-  { value: "Crème", label: "Crème" },
-  { value: "Solution", label: "Solution" },
-  { value: "Injectable", label: "Injectable" },
-  { value: "Autre", label: "Autre" },
-];
-
 const EMPTY = {
-  code: "", name: "", family: "", form: "", dosage: "", unitsPerPack: "",
+  code: "", name: "", family: "", form: "", laboratory: "", unitsPerPack: "",
   nominalSpeed: "", targetOEE: "", targetRejectRate: "", standardLotSize: "",
   formatChangeTime: "", cleaningTime: "", comments: "", active: true,
 };
@@ -42,6 +20,9 @@ const EMPTY = {
 export default function AdminProductsPage() {
   const { data: session } = useSession();
   const [products, setProducts] = useState<any[]>([]);
+  const [families, setFamilies] = useState<{value:string,label:string}[]>([]);
+  const [forms, setForms] = useState<{value:string,label:string}[]>([]);
+  const [laboratories, setLaboratories] = useState<{value:string,label:string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -52,7 +33,15 @@ export default function AdminProductsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch("/api/products?all=true"); if (r.ok) setProducts(await r.json()); } catch {} finally { setLoading(false); }
+    try {
+      const [prodRes] = await Promise.all([
+        fetch("/api/products?all=true"),
+        fetch("/api/reference-lists?type=FAMILY").then(r=>r.json()).then(d => setFamilies(d.map((i:any) => ({value:i.value, label:i.label})))),
+        fetch("/api/reference-lists?type=FORM").then(r=>r.json()).then(d => setForms(d.map((i:any) => ({value:i.value, label:i.label})))),
+        fetch("/api/reference-lists?type=LABORATORY").then(r=>r.json()).then(d => setLaboratories(d.map((i:any) => ({value:i.value, label:i.label})))),
+      ]);
+      if (prodRes.ok) setProducts(await prodRes.json());
+    } catch {} finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -63,7 +52,7 @@ export default function AdminProductsPage() {
     setEditingId(p.id);
     setForm({
       code: p.code, name: p.name, family: p.family || "", form: p.form || "",
-      dosage: p.dosage || "", unitsPerPack: p.unitsPerPack?.toString() || "",
+      laboratory: p.laboratory || "", unitsPerPack: p.unitsPerPack?.toString() || "",
       nominalSpeed: p.nominalSpeed?.toString() || "",
       targetOEE: p.targetOEE ? (p.targetOEE * 100).toFixed(0) : "",
       targetRejectRate: p.targetRejectRate ? (p.targetRejectRate * 100).toFixed(1) : "",
@@ -82,7 +71,7 @@ export default function AdminProductsPage() {
       const payload = {
         ...(editingId && { id: editingId }),
         code: form.code.trim().toUpperCase(), name: form.name.trim(),
-        family: form.family || null, form: form.form || null, dosage: form.dosage || null,
+        family: form.family || null, form: form.form || null, laboratory: form.laboratory || null,
         unitsPerPack: form.unitsPerPack ? Number(form.unitsPerPack) : null,
         nominalSpeed: form.nominalSpeed ? Number(form.nominalSpeed) : null,
         targetOEE: form.targetOEE ? Number(form.targetOEE) / 100 : null,
@@ -135,11 +124,11 @@ export default function AdminProductsPage() {
             <Input label="Nom *" value={form.name} onChange={(e) => set("name", e.target.value)} disabled={submitting} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select label="Famille" options={FAMILIES} placeholder="Sélectionner" value={form.family} onChange={(e) => set("family", e.target.value)} disabled={submitting} />
-            <Select label="Forme" options={FORMS} placeholder="Sélectionner" value={form.form} onChange={(e) => set("form", e.target.value)} disabled={submitting} />
+            <Select label="Famille" options={families} placeholder="Sélectionner" value={form.family} onChange={(e) => set("family", e.target.value)} disabled={submitting} />
+            <Select label="Forme" options={forms} placeholder="Sélectionner" value={form.form} onChange={(e) => set("form", e.target.value)} disabled={submitting} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input label="Dosage" value={form.dosage} onChange={(e) => set("dosage", e.target.value)} disabled={submitting} />
+            <Select label="Laboratoire" options={laboratories} placeholder="Sélectionner" value={form.laboratory} onChange={(e) => set("laboratory", e.target.value)} disabled={submitting} />
             <Input label="Unités/pack" type="number" value={form.unitsPerPack} onChange={(e) => set("unitsPerPack", e.target.value)} disabled={submitting} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

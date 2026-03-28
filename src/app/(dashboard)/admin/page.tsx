@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Package, AlertTriangle, Factory, Boxes } from "lucide-react";
+import { Users, Package, AlertTriangle, Factory, Boxes, BookOpen } from "lucide-react";
 
 const adminItems = [
   { href: "/admin/users", label: "Utilisateurs", description: "Gestion des comptes et rôles", icon: Users },
@@ -10,6 +10,7 @@ const adminItems = [
   { href: "/admin/products", label: "Produits", description: "Référentiel produits", icon: Package },
   { href: "/admin/lots", label: "Lots", description: "Lots de production", icon: Boxes },
   { href: "/admin/causes", label: "Types d'arrêt", description: "Catégories, sous-catégories et types", icon: AlertTriangle },
+  { href: "/admin/referentiels", label: "Référentiels", description: "Familles, formes, laboratoires", icon: BookOpen },
 ];
 
 export default function AdminPage() {
