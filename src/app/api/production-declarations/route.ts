@@ -7,32 +7,68 @@ import { calcShiftTRS, getShiftDurationMinutes } from "@/lib/trs-calculations";
 
 const PAUSE_MINUTES = 30;
 
+/**
+ * Get downtime minutes for a specific shift on a specific date.
+ * Filters DowntimeEvents by batchId where startTime falls within
+ * the shift's time window on the given date.
+ */
+async function getShiftDowntimeMinutes(
+  batchId: string,
+  shiftStartTime: string,
+  shiftEndTime: string,
+  date: Date
+): Promise<number> {
+  const [sh, sm] = shiftStartTime.split(":").map(Number);
+  const [eh, em] = shiftEndTime.split(":").map(Number);
+
+  const shiftStart = new Date(date);
+  shiftStart.setHours(sh, sm, 0, 0);
+
+  const shiftEnd = new Date(date);
+  shiftEnd.setHours(eh, em, 0, 0);
+
+  // Handle overnight shifts (e.g., 22:00-06:00)
+  if (shiftEnd <= shiftStart) {
+    shiftEnd.setDate(shiftEnd.getDate() + 1);
+  }
+
+  const events = await prisma.downtimeEvent.findMany({
+    where: {
+      batchId,
+      startTime: { gte: shiftStart, lt: shiftEnd },
+    },
+    select: { duration: true },
+  });
+
+  return events.reduce((sum, e) => sum + (e.duration || 0), 0);
+}
+
 /** Compute TRS fields for a declaration */
-async function computeTRS(batchId: string, shiftId: string, quantityProduced: number, microStopMinutes: number) {
-  // Get shift duration
+async function computeTRS(
+  batchId: string,
+  shiftId: string,
+  declDate: Date,
+  quantityProduced: number,
+  microStopMinutes: number
+) {
   const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
   if (!shift) return {};
 
   const shiftDuration = getShiftDurationMinutes(shift.startTime, shift.endTime);
 
-  // Get product nominal speed from batch
   const batch = await prisma.batch.findUnique({
     where: { id: batchId },
     include: { product: true },
   });
   const nominalSpeed = batch?.product?.nominalSpeed || 0;
 
-  // Get total downtime for this batch (all DowntimeEvents)
-  const downtimeAgg = await prisma.downtimeEvent.aggregate({
-    where: { batchId },
-    _sum: { duration: true },
-  });
-  const totalDowntime = downtimeAgg._sum.duration || 0;
-
-  // For per-shift downtime, we'd need to filter by date — for now use proportional
-  // Simple approach: distribute downtimes evenly if multiple shifts
-  const declCount = await prisma.productionDeclaration.count({ where: { batchId } });
-  const shiftDowntime = declCount > 0 ? totalDowntime / (declCount + 1) : totalDowntime;
+  // Get downtime for THIS shift on THIS date only
+  const shiftDowntime = await getShiftDowntimeMinutes(
+    batchId,
+    shift.startTime,
+    shift.endTime,
+    declDate
+  );
 
   const trs = calcShiftTRS({
     shiftDurationMinutes: shiftDuration,
@@ -82,13 +118,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
     }
 
-    const trsFields = await computeTRS(d.batchId, d.shiftId, d.quantityProduced, d.microStopMinutes);
+    const declDate = new Date(d.date);
+    const trsFields = await computeTRS(d.batchId, d.shiftId, declDate, d.quantityProduced, d.microStopMinutes);
 
     const entry = await prisma.productionDeclaration.create({
       data: {
         batchId: d.batchId,
         shiftId: d.shiftId,
-        date: new Date(d.date),
+        date: declDate,
         quantityProduced: d.quantityProduced,
         actualSpeed: d.actualSpeed,
         microStopMinutes: d.microStopMinutes,
@@ -119,10 +156,11 @@ export async function PUT(req: NextRequest) {
     const userId = await resolveUserId(body.userId);
 
     const newShiftId = shiftId || existing.shiftId;
+    const newDate = date ? new Date(date) : existing.date;
     const newQty = quantityProduced !== undefined ? Number(quantityProduced) : existing.quantityProduced;
     const newMicro = microStopMinutes !== undefined ? Number(microStopMinutes) : existing.microStopMinutes;
 
-    const trsFields = await computeTRS(existing.batchId, newShiftId, newQty, newMicro);
+    const trsFields = await computeTRS(existing.batchId, newShiftId, newDate, newQty, newMicro);
 
     const entry = await prisma.productionDeclaration.update({
       where: { id },
