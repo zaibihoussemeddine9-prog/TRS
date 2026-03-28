@@ -10,9 +10,9 @@ export async function GET(req: NextRequest) {
   const batchWhere: Record<string, unknown> = {};
   if (lineId) batchWhere.lineId = lineId;
   if (dateFrom || dateTo) {
-    batchWhere.date = {};
-    if (dateFrom) (batchWhere.date as Record<string, unknown>).gte = new Date(dateFrom);
-    if (dateTo) (batchWhere.date as Record<string, unknown>).lte = new Date(dateTo);
+    batchWhere.startTime = {};
+    if (dateFrom) (batchWhere.startTime as Record<string, unknown>).gte = new Date(dateFrom);
+    if (dateTo) (batchWhere.startTime as Record<string, unknown>).lte = new Date(dateTo);
   }
 
   try {
@@ -21,7 +21,6 @@ export async function GET(req: NextRequest) {
       include: {
         line: true,
         product: true,
-        shift: true,
         productionDeclarations: true,
         downtimeEvents: { include: { subCategory: { include: { category: true } } } },
       },
@@ -75,7 +74,7 @@ export async function GET(req: NextRequest) {
     // Daily trend
     const dailyMap = new Map<string, typeof batchStats>();
     batchStats.forEach((b) => {
-      const key = new Date(b.date).toISOString().split("T")[0];
+      const key = new Date(b.startTime).toISOString().split("T")[0];
       if (!dailyMap.has(key)) dailyMap.set(key, []);
       dailyMap.get(key)!.push(b);
     });

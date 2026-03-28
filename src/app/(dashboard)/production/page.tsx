@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { Plus, Eye } from "lucide-react";
 
 export default function ProductionPage() {
@@ -35,10 +35,10 @@ export default function ProductionPage() {
 
   const columns: Column<any>[] = [
     { key: "lot", header: "N° Lot", sortable: true, sortValue: (r) => r.lot, accessor: (r) => <span className="font-mono font-semibold">{r.lot}</span> },
-    { key: "date", header: "Date", sortable: true, sortValue: (r) => r.date, accessor: (r) => formatDate(r.date) },
+    { key: "startTime", header: "Début", sortable: true, sortValue: (r) => r.startTime, accessor: (r) => formatDateTime(r.startTime) },
+    { key: "endTime", header: "Fin", sortable: true, sortValue: (r) => r.endTime || "", accessor: (r) => r.endTime ? formatDateTime(r.endTime) : "En cours" },
     { key: "line", header: "Ligne", accessor: (r) => r.line?.name || "—" },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name || "—" },
-    { key: "shift", header: "Shift", accessor: (r) => r.shift?.name || "—" },
     { key: "status", header: "Statut", accessor: (r) => <Badge variant={r.status === "OPEN" ? "success" : "default"}>{r.status === "OPEN" ? "Ouvert" : "Clôturé"}</Badge> },
     { key: "downtimes", header: "Arrêts", accessor: (r) => r._count?.downtimeEvents || 0 },
     { key: "decl", header: "Saisies", accessor: (r) => r._count?.productionDeclarations || 0 },

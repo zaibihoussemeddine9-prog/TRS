@@ -12,17 +12,13 @@ export default function NewProductionPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [lines, setLines] = useState<any[]>([]);
-  const [shifts, setShifts] = useState<any[]>([]);
   const [compatibleProducts, setCompatibleProducts] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ date: "", lineId: "", productId: "", shiftId: "", lot: "", orderNumber: "", comment: "" });
+  const [form, setForm] = useState({ startTime: "", endTime: "", lineId: "", productId: "", lot: "", orderNumber: "", comment: "" });
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/lines").then((r) => r.json()),
-      fetch("/api/shifts").then((r) => r.json()),
-    ]).then(([l, s]) => { setLines(l); setShifts(s); }).catch(() => {});
+    fetch("/api/lines").then((r) => r.json()).then(setLines).catch(() => {});
   }, []);
 
   // When line changes, load compatible products
@@ -43,18 +39,28 @@ export default function NewProductionPage() {
   };
 
   async function handleSubmit() {
-    if (!form.date || !form.lineId || !form.productId || !form.shiftId || !form.lot.trim()) {
-      setError("Date, ligne, produit, shift et lot sont requis"); return;
+    if (!form.startTime || !form.lineId || !form.productId || !form.lot.trim()) {
+      setError("Début, ligne, produit et lot sont requis"); return;
     }
     if (!session?.user?.id) {
       setError("Utilisateur non reconnu. Veuillez vous reconnecter."); return;
     }
     setSubmitting(true); setError("");
     try {
+      const payload: any = {
+        startTime: new Date(form.startTime).toISOString(),
+        lineId: form.lineId,
+        productId: form.productId,
+        lot: form.lot,
+        orderNumber: form.orderNumber,
+        comment: form.comment,
+        userId: session.user.id,
+      };
+      if (form.endTime) payload.endTime = new Date(form.endTime).toISOString();
       const res = await fetch("/api/production", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, userId: session.user.id }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok) router.push(`/production/${data.id}`);
@@ -74,7 +80,8 @@ export default function NewProductionPage() {
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="N° Lot *" value={form.lot} onChange={(e) => set("lot", e.target.value)} />
-            <Input label="Date *" type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
+            <Input label="Début du lot *" type="datetime-local" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} />
+            <Input label="Fin du lot (laisser vide si en cours)" type="datetime-local" value={form.endTime} onChange={(e) => set("endTime", e.target.value)} />
             <Select label="Ligne *" options={lines.map((l) => ({ value: l.id, label: l.name }))} placeholder="Sélectionner une ligne" value={form.lineId} onChange={(e) => set("lineId", e.target.value)} />
             <Select
               label="Produit *"
@@ -84,7 +91,6 @@ export default function NewProductionPage() {
               onChange={(e) => set("productId", e.target.value)}
               disabled={!form.lineId}
             />
-            <Select label="Shift *" options={shifts.map((s: any) => ({ value: s.id, label: `${s.name} (${s.startTime}–${s.endTime})` }))} placeholder="Sélectionner un shift" value={form.shiftId} onChange={(e) => set("shiftId", e.target.value)} />
             <Input label="N° OF / OC" value={form.orderNumber} onChange={(e) => set("orderNumber", e.target.value)} />
           </div>
         </CardContent>

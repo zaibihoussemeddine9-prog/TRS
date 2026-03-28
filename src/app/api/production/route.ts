@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       const batch = await prisma.batch.findUnique({
         where: { id },
         include: {
-          line: true, product: true, shift: true,
+          line: true, product: true,
           createdBy: { select: { name: true } },
           _count: { select: { downtimeEvents: true, productionDeclarations: true } },
         },
@@ -35,9 +35,9 @@ export async function GET(req: NextRequest) {
   if (lineId) where.lineId = lineId;
   if (status) where.status = status;
   if (dateFrom || dateTo) {
-    where.date = {};
-    if (dateFrom) (where.date as Record<string, unknown>).gte = new Date(dateFrom);
-    if (dateTo) (where.date as Record<string, unknown>).lte = new Date(dateTo);
+    where.startTime = {};
+    if (dateFrom) (where.startTime as Record<string, unknown>).gte = new Date(dateFrom);
+    if (dateTo) (where.startTime as Record<string, unknown>).lte = new Date(dateTo);
   }
 
   try {
@@ -46,11 +46,10 @@ export async function GET(req: NextRequest) {
       include: {
         line: true,
         product: true,
-        shift: true,
         createdBy: { select: { name: true } },
         _count: { select: { downtimeEvents: true, productionDeclarations: true } },
       },
-      orderBy: { date: "desc" },
+      orderBy: { startTime: "desc" },
     });
     return NextResponse.json(batches);
   } catch (err) {
@@ -83,24 +82,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const shift = await prisma.shift.findUnique({ where: { id: d.shiftId } });
-    if (!shift) {
-      return NextResponse.json({ error: "Shift introuvable." }, { status: 400 });
-    }
-
     const batch = await prisma.batch.create({
       data: {
         lot: d.lot,
         lineId: d.lineId,
         productId: d.productId,
-        shiftId: d.shiftId,
-        date: new Date(d.date),
+        startTime: new Date(d.startTime),
+        endTime: d.endTime ? new Date(d.endTime) : null,
         orderNumber: d.orderNumber || null,
         comment: d.comment || null,
         status: d.status || "OPEN",
         createdById: userId,
       },
-      include: { line: true, product: true, shift: true },
+      include: { line: true, product: true },
     });
 
     createAuditLog({ userId, action: "CREATE", entity: "Batch", entityId: batch.id });
@@ -114,10 +108,19 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, lot, lineId, productId, shiftId, date, orderNumber, comment, status } = body;
+    const { id, lot, lineId, productId, startTime, endTime, orderNumber, comment, status } = body;
     if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
 
     const userId = await resolveUserId(body.userId);
+
+    // Validate endTime > startTime if both provided
+    if (startTime && endTime) {
+      const st = new Date(startTime);
+      const et = new Date(endTime);
+      if (et <= st) {
+        return NextResponse.json({ error: "La date de fin doit être après la date de début." }, { status: 400 });
+      }
+    }
 
     const batch = await prisma.batch.update({
       where: { id },
@@ -125,13 +128,13 @@ export async function PUT(req: NextRequest) {
         ...(lot !== undefined && { lot }),
         ...(lineId !== undefined && { lineId }),
         ...(productId !== undefined && { productId }),
-        ...(shiftId !== undefined && { shiftId }),
-        ...(date !== undefined && { date: new Date(date) }),
+        ...(startTime !== undefined && { startTime: new Date(startTime) }),
+        ...(endTime !== undefined && { endTime: endTime ? new Date(endTime) : null }),
         ...(orderNumber !== undefined && { orderNumber: orderNumber || null }),
         ...(comment !== undefined && { comment: comment || null }),
         ...(status !== undefined && { status }),
       },
-      include: { line: true, product: true, shift: true },
+      include: { line: true, product: true },
     });
 
     createAuditLog({ userId, action: "UPDATE", entity: "Batch", entityId: batch.id });

@@ -4,6 +4,7 @@ import { productionDeclarationSchema } from "@/lib/validations";
 import { createAuditLog } from "@/lib/audit";
 import { resolveUserId } from "@/lib/resolve-user";
 import { computeTRS } from "@/lib/trs-recalc";
+import { shiftsOverlap, shiftWithinBatch } from "@/lib/shift-overlap";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -32,6 +33,30 @@ export async function POST(req: NextRequest) {
     const userId = await resolveUserId(body.userId);
     if (!userId) {
       return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
+    }
+
+    // 1. Load the batch
+    const batch = await prisma.batch.findUnique({ where: { id: d.batchId } });
+    if (!batch) return NextResponse.json({ error: "Lot introuvable" }, { status: 404 });
+
+    // 2. Load the shift
+    const shift = await prisma.shift.findUnique({ where: { id: d.shiftId } });
+    if (!shift) return NextResponse.json({ error: "Shift introuvable" }, { status: 404 });
+
+    // 3. Check shift is within batch window
+    if (!shiftWithinBatch(d.date, shift, batch.startTime, batch.endTime)) {
+      return NextResponse.json({ error: "Ce shift est en dehors de la fenêtre du lot." }, { status: 400 });
+    }
+
+    // 4. Check for overlaps with existing declarations
+    const existing = await prisma.productionDeclaration.findMany({
+      where: { batchId: d.batchId, date: new Date(d.date) },
+      include: { shift: true },
+    });
+    for (const ex of existing) {
+      if (ex.shift && shiftsOverlap(shift, ex.shift)) {
+        return NextResponse.json({ error: `Un shift chevauchant (${ex.shift.name}) existe déjà pour cette date.` }, { status: 400 });
+      }
     }
 
     const trsFields = await computeTRS(d.batchId, d.shiftId, d.quantityProduced, d.microStopMinutes);
@@ -73,6 +98,31 @@ export async function PUT(req: NextRequest) {
     const newDate = date ? new Date(date) : existing.date;
     const newQty = quantityProduced !== undefined ? Number(quantityProduced) : existing.quantityProduced;
     const newMicro = microStopMinutes !== undefined ? Number(microStopMinutes) : existing.microStopMinutes;
+
+    // 1. Load the batch
+    const batch = await prisma.batch.findUnique({ where: { id: existing.batchId } });
+    if (!batch) return NextResponse.json({ error: "Lot introuvable" }, { status: 404 });
+
+    // 2. Load the shift
+    const shift = await prisma.shift.findUnique({ where: { id: newShiftId } });
+    if (!shift) return NextResponse.json({ error: "Shift introuvable" }, { status: 404 });
+
+    // 3. Check shift is within batch window
+    const dateStr = date || existing.date.toISOString();
+    if (!shiftWithinBatch(dateStr, shift, batch.startTime, batch.endTime)) {
+      return NextResponse.json({ error: "Ce shift est en dehors de la fenêtre du lot." }, { status: 400 });
+    }
+
+    // 4. Check for overlaps with existing declarations (exclude current)
+    const others = await prisma.productionDeclaration.findMany({
+      where: { batchId: existing.batchId, date: newDate, NOT: { id } },
+      include: { shift: true },
+    });
+    for (const ex of others) {
+      if (ex.shift && shiftsOverlap(shift, ex.shift)) {
+        return NextResponse.json({ error: `Un shift chevauchant (${ex.shift.name}) existe déjà pour cette date.` }, { status: 400 });
+      }
+    }
 
     const trsFields = await computeTRS(existing.batchId, newShiftId, newQty, newMicro);
 

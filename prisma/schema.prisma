@@ -114,7 +114,6 @@ model Shift {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  batches                Batch[]
   productionDeclarations ProductionDeclaration[]
 
   @@index([code])
@@ -161,30 +160,28 @@ model DowntimeSubCategory {
 // ============================================
 
 model Batch {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   lot         String
   lineId      String
   productId   String
-  shiftId     String
-  date        DateTime @db.Date
+  startTime   DateTime
+  endTime     DateTime?
   orderNumber String?
-  status      String   @default("OPEN")
+  status      String    @default("OPEN")
   comment     String?
   createdById String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   line                   Line                   @relation(fields: [lineId], references: [id])
   product                Product                @relation(fields: [productId], references: [id])
-  shift                  Shift                  @relation(fields: [shiftId], references: [id])
   createdBy              User                   @relation("BatchCreatedBy", fields: [createdById], references: [id])
   downtimeEvents         DowntimeEvent[]
   productionDeclarations ProductionDeclaration[]
 
   @@index([lineId])
   @@index([productId])
-  @@index([shiftId])
-  @@index([date])
+  @@index([startTime])
   @@index([lot])
 }
 
