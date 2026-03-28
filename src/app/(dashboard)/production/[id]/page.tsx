@@ -198,6 +198,14 @@ export default function BatchDetailPage() {
     : [];
 
   async function startDowntime() {
+    // Check no ongoing downtime already exists
+    const ongoing = downtimes.find((d: any) => !d.endTime);
+    if (ongoing) {
+      setError("Un arrêt est déjà en cours. Clôturez-le d'abord.");
+      setTimeout(() => setError(""), 4000);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/downtimes", {
@@ -298,6 +306,45 @@ export default function BatchDetailPage() {
     setSubmitting(true);
     setError("");
     try {
+      // Client-side validation
+      if (dtForm.startTime && batch) {
+        const dtStart = new Date(dtForm.startTime);
+        const dtEnd = dtForm.endTime ? new Date(dtForm.endTime) : null;
+
+        // endTime > startTime
+        if (dtEnd && dtEnd.getTime() <= dtStart.getTime()) {
+          setError("L'heure de fin doit être après l'heure de début.");
+          setSubmitting(false);
+          return;
+        }
+
+        // Within batch window
+        if (dtStart.getTime() < new Date(batch.startTime).getTime()) {
+          setError("L'arrêt ne peut pas commencer avant le début du lot.");
+          setSubmitting(false);
+          return;
+        }
+        if (batch.endTime && dtEnd && dtEnd.getTime() > new Date(batch.endTime).getTime()) {
+          setError("L'arrêt dépasse la fin du lot.");
+          setSubmitting(false);
+          return;
+        }
+
+        // No overlap with other downtimes
+        for (const ex of downtimes) {
+          if (editingDtId && ex.id === editingDtId) continue;
+          const exStart = new Date(ex.startTime).getTime();
+          const exEnd = ex.endTime ? new Date(ex.endTime).getTime() : Infinity;
+          const newStart = dtStart.getTime();
+          const newEnd = dtEnd ? dtEnd.getTime() : Infinity;
+          if (newStart < exEnd && exStart < (dtEnd ? newEnd : Infinity)) {
+            setError("Un arrêt existe déjà sur cette plage horaire.");
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
+
       const isEdit = !!editingDtId;
       const payload: any = isEdit
         ? { id: editingDtId, userId: session?.user?.id }
