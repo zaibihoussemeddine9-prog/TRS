@@ -114,9 +114,19 @@ export default function BatchDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      let data;
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        setError(`Erreur serveur (${res.status}): réponse non-JSON`);
+        console.error("Non-JSON response:", text.substring(0, 300));
+        return;
+      }
       if (!res.ok) {
-        setError(data.error || "Erreur");
+        const msg = typeof data.error === "string" ? data.error : JSON.stringify(data.error);
+        setError(msg || `Erreur ${res.status}`);
         return;
       }
       setSuccess(editingDeclId ? "Déclaration modifiée" : "Déclaration ajoutée");
@@ -155,7 +165,13 @@ export default function BatchDetailPage() {
       </div>
     );
   if (!batch)
-    return <div className="py-12 text-center text-slate-500">Lot introuvable</div>;
+    return (
+      <div className="py-12 text-center space-y-2">
+        <p className="text-slate-500">Lot introuvable</p>
+        <p className="text-xs text-slate-400">ID: {batchId}</p>
+        <a href="/production" className="text-sm text-blue-600 hover:underline">Retour à la liste</a>
+      </div>
+    );
 
   const declColumns: Column<any>[] = [
     {
