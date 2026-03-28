@@ -398,7 +398,7 @@ model KPIThreshold {
 
 model AuditLog {
   id          String   @id @default(cuid())
-  userId      String
+  userId      String?
   action      String
   entity      String
   entityId    String
@@ -406,7 +406,7 @@ model AuditLog {
   newValue    String?  @db.Text
   createdAt   DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@index([entity, entityId])
   @@index([userId])

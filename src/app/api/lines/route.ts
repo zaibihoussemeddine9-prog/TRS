@@ -24,8 +24,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, code, workshopId, lineType, defaultSpeed, formatChangeTime, cleaningTime, targetOEE, active, userId } = body;
 
-    console.log("[POST /api/lines] payload reçu:", JSON.stringify(body, null, 2));
-
     if (!name || !code || !workshopId) {
       return NextResponse.json({ error: "Nom, code et atelier sont obligatoires" }, { status: 400 });
     }
@@ -35,7 +33,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Le code "${code}" existe déjà` }, { status: 409 });
     }
 
-    // Verify workshop exists
     const workshop = await prisma.workshop.findUnique({ where: { id: workshopId } });
     if (!workshop) {
       return NextResponse.json({ error: "Atelier introuvable" }, { status: 400 });
@@ -46,7 +43,6 @@ export async function POST(req: NextRequest) {
     const parsedCT = cleaningTime ? parseFloat(String(cleaningTime)) : null;
     const parsedOEE = targetOEE ? parseFloat(String(targetOEE)) : null;
 
-    // Validate parsed numbers
     if (parsedSpeed !== null && isNaN(parsedSpeed)) {
       return NextResponse.json({ error: "Cadence nominale invalide" }, { status: 400 });
     }
@@ -54,6 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "TRS cible invalide (doit être entre 0 et 1)" }, { status: 400 });
     }
 
+    // 1. Create the line — this is the critical operation
     const line = await prisma.packagingLine.create({
       data: {
         name,
@@ -69,17 +66,14 @@ export async function POST(req: NextRequest) {
       include: { workshop: { include: { site: true } } },
     });
 
-    console.log("[POST /api/lines] ligne créée:", line.id, line.code);
-
-    if (userId) {
-      await createAuditLog({
-        userId,
-        action: "CREATE",
-        entity: "PackagingLine",
-        entityId: line.id,
-        newValue: { name, code, workshopId, lineType, defaultSpeed: parsedSpeed, formatChangeTime: parsedFCT, cleaningTime: parsedCT, targetOEE: parsedOEE },
-      });
-    }
+    // 2. Audit log — non-blocking, never prevents success response
+    createAuditLog({
+      userId: userId || null,
+      action: "CREATE",
+      entity: "PackagingLine",
+      entityId: line.id,
+      newValue: { name, code, workshopId, lineType, defaultSpeed: parsedSpeed, formatChangeTime: parsedFCT, cleaningTime: parsedCT, targetOEE: parsedOEE },
+    });
 
     return NextResponse.json(line, { status: 201 });
   } catch (err) {
@@ -93,8 +87,6 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
     const { id, name, code, workshopId, lineType, defaultSpeed, formatChangeTime, cleaningTime, targetOEE, active, userId } = body;
-
-    console.log("[PUT /api/lines] payload reçu:", JSON.stringify(body, null, 2));
 
     if (!id) {
       return NextResponse.json({ error: "ID requis" }, { status: 400 });
@@ -131,6 +123,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "TRS cible invalide (doit être entre 0 et 1)" }, { status: 400 });
     }
 
+    // 1. Update the line — critical operation
     const line = await prisma.packagingLine.update({
       where: { id },
       data: {
@@ -147,18 +140,15 @@ export async function PUT(req: NextRequest) {
       include: { workshop: { include: { site: true } } },
     });
 
-    console.log("[PUT /api/lines] ligne mise à jour:", line.id, line.code);
-
-    if (userId) {
-      await createAuditLog({
-        userId,
-        action: "UPDATE",
-        entity: "PackagingLine",
-        entityId: line.id,
-        oldValue: existing as unknown as Record<string, unknown>,
-        newValue: { name, code, workshopId, lineType, defaultSpeed: parsedSpeed, formatChangeTime: parsedFCT, cleaningTime: parsedCT, targetOEE: parsedOEE, active },
-      });
-    }
+    // 2. Audit log — non-blocking
+    createAuditLog({
+      userId: userId || null,
+      action: "UPDATE",
+      entity: "PackagingLine",
+      entityId: line.id,
+      oldValue: existing as unknown as Record<string, unknown>,
+      newValue: { name, code, workshopId, lineType, defaultSpeed: parsedSpeed, formatChangeTime: parsedFCT, cleaningTime: parsedCT, targetOEE: parsedOEE, active },
+    });
 
     return NextResponse.json(line);
   } catch (err) {
