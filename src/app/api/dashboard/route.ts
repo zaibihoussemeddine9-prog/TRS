@@ -12,7 +12,11 @@ export async function GET(req: NextRequest) {
   if (dateFrom || dateTo) {
     batchWhere.startTime = {};
     if (dateFrom) (batchWhere.startTime as Record<string, unknown>).gte = new Date(dateFrom);
-    if (dateTo) (batchWhere.startTime as Record<string, unknown>).lte = new Date(dateTo);
+    if (dateTo) {
+      const endOfDay = new Date(dateTo);
+      endOfDay.setHours(23, 59, 59, 999);
+      (batchWhere.startTime as Record<string, unknown>).lte = endOfDay;
+    }
   }
 
   try {
