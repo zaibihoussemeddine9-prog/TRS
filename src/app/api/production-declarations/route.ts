@@ -3,91 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { productionDeclarationSchema } from "@/lib/validations";
 import { createAuditLog } from "@/lib/audit";
 import { resolveUserId } from "@/lib/resolve-user";
-import { calcShiftTRS, getShiftDurationMinutes } from "@/lib/trs-calculations";
-
-const PAUSE_MINUTES = 30;
-
-/**
- * Get downtime minutes for a specific shift on a specific date.
- * Filters DowntimeEvents by batchId where startTime falls within
- * the shift's time window on the given date.
- */
-async function getShiftDowntimeMinutes(
-  batchId: string,
-  shiftStartTime: string,
-  shiftEndTime: string,
-  date: Date
-): Promise<number> {
-  const [sh, sm] = shiftStartTime.split(":").map(Number);
-  const [eh, em] = shiftEndTime.split(":").map(Number);
-
-  const shiftStart = new Date(date);
-  shiftStart.setHours(sh, sm, 0, 0);
-
-  const shiftEnd = new Date(date);
-  shiftEnd.setHours(eh, em, 0, 0);
-
-  // Handle overnight shifts (e.g., 22:00-06:00)
-  if (shiftEnd <= shiftStart) {
-    shiftEnd.setDate(shiftEnd.getDate() + 1);
-  }
-
-  const events = await prisma.downtimeEvent.findMany({
-    where: {
-      batchId,
-      startTime: { gte: shiftStart, lt: shiftEnd },
-    },
-    select: { duration: true },
-  });
-
-  return events.reduce((sum, e) => sum + (e.duration || 0), 0);
-}
-
-/** Compute TRS fields for a declaration */
-async function computeTRS(
-  batchId: string,
-  shiftId: string,
-  declDate: Date,
-  quantityProduced: number,
-  microStopMinutes: number
-) {
-  const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
-  if (!shift) return {};
-
-  const shiftDuration = getShiftDurationMinutes(shift.startTime, shift.endTime);
-
-  const batch = await prisma.batch.findUnique({
-    where: { id: batchId },
-    include: { product: true },
-  });
-  const nominalSpeed = batch?.product?.nominalSpeed || 0;
-
-  // Get downtime for THIS shift on THIS date only
-  const shiftDowntime = await getShiftDowntimeMinutes(
-    batchId,
-    shift.startTime,
-    shift.endTime,
-    declDate
-  );
-
-  const trs = calcShiftTRS({
-    shiftDurationMinutes: shiftDuration,
-    pauseMinutes: PAUSE_MINUTES,
-    downtimeMinutes: shiftDowntime,
-    microStopMinutes,
-    quantityProduced,
-    nominalSpeed,
-  });
-
-  return {
-    plannedMinutes: trs.plannedMinutes,
-    runningMinutes: trs.runningMinutes,
-    availability: Math.round(trs.availability * 10000) / 10000,
-    performance: Math.round(trs.performance * 10000) / 10000,
-    quality: Math.round(trs.quality * 10000) / 10000,
-    oee: Math.round(trs.oee * 10000) / 10000,
-  };
-}
+import { computeTRS } from "@/lib/trs-recalc";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -154,7 +70,6 @@ export async function PUT(req: NextRequest) {
     if (!existing) return NextResponse.json({ error: "Déclaration introuvable" }, { status: 404 });
 
     const userId = await resolveUserId(body.userId);
-
     const newShiftId = shiftId || existing.shiftId;
     const newDate = date ? new Date(date) : existing.date;
     const newQty = quantityProduced !== undefined ? Number(quantityProduced) : existing.quantityProduced;

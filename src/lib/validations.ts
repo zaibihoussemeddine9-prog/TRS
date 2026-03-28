@@ -18,7 +18,7 @@ export const batchSchema = z.object({
 
 export const downtimeEventSchema = z.object({
   batchId: z.string().min(1, "Lot requis"),
-  subCategoryId: z.string().min(1, "Sous-catégorie requise"),
+  subCategoryId: z.string().optional(),
   startTime: z.string().min(1, "Heure début requise"),
   endTime: z.string().optional(),
   duration: z.coerce.number().min(0).optional(),

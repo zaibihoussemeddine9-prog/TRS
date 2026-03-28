@@ -191,7 +191,7 @@ model Batch {
 model DowntimeEvent {
   id               String    @id @default(cuid())
   batchId          String
-  subCategoryId    String
+  subCategoryId    String?
   startTime        DateTime
   endTime          DateTime?
   duration         Float?
@@ -200,9 +200,9 @@ model DowntimeEvent {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  batch        Batch               @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  subCategory  DowntimeSubCategory @relation(fields: [subCategoryId], references: [id])
-  createdBy    User                @relation("DowntimeCreatedBy", fields: [createdById], references: [id])
+  batch        Batch                @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  subCategory  DowntimeSubCategory? @relation(fields: [subCategoryId], references: [id])
+  createdBy    User                 @relation("DowntimeCreatedBy", fields: [createdById], references: [id])
 
   @@index([batchId])
   @@index([subCategoryId])

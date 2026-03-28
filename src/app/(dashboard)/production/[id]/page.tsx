@@ -10,10 +10,11 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { DataTable, Column } from "@/components/ui/data-table";
-import { Plus, Pencil, Trash2, CheckCircle, Package, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, Package, Clock, AlertTriangle, StopCircle, Play, Square } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
 const DECL_EMPTY = { shiftId: "", date: "", quantityProduced: "", actualSpeed: "", microStopMinutes: "", comment: "" };
+const DT_EMPTY = { categoryId: "", subCategoryId: "", startTime: "", endTime: "", description: "" };
 
 export default function BatchDetailPage() {
   const params = useParams();
@@ -26,12 +27,19 @@ export default function BatchDetailPage() {
   const [shifts, setShifts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Declaration modal state
   const [showDeclModal, setShowDeclModal] = useState(false);
   const [editingDeclId, setEditingDeclId] = useState<string | null>(null);
   const [declForm, setDeclForm] = useState(DECL_EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Downtime state
+  const [categories, setCategories] = useState<any[]>([]);
+  const [showDtModal, setShowDtModal] = useState(false);
+  const [editingDtId, setEditingDtId] = useState<string | null>(null);
+  const [dtForm, setDtForm] = useState(DT_EMPTY);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +72,14 @@ export default function BatchDetailPage() {
     load();
   }, [load]);
 
+  // Load categories on mount
+  useEffect(() => {
+    fetch("/api/causes")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setCategories(data))
+      .catch(() => setCategories([]));
+  }, []);
+
   // Cumuls
   const totalProduced = declarations.reduce((s: number, d: any) => s + (d.quantityProduced || 0), 0);
   const totalMicroStops = declarations.reduce((s: number, d: any) => s + (d.microStopMinutes || 0), 0);
@@ -76,6 +92,8 @@ export default function BatchDetailPage() {
   const batchOEE = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.oee || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
   const batchAvail = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.availability || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
   const batchPerf = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.performance || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
+
+  // --- Declaration handlers ---
 
   function openCreateDecl() {
     setEditingDeclId(null);
@@ -168,6 +186,159 @@ export default function BatchDetailPage() {
 
   const setD = (k: string, v: string) => setDeclForm((p) => ({ ...p, [k]: v }));
 
+  // --- Downtime handlers ---
+
+  const setDt = (k: string, v: string) => setDtForm((p) => ({ ...p, [k]: v }));
+
+  const filteredSubCategories = dtForm.categoryId
+    ? categories.find((c: any) => c.id === dtForm.categoryId)?.subCategories || []
+    : [];
+
+  async function startDowntime() {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/downtimes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId, userId: session?.user?.id }),
+      });
+      if (res.ok) {
+        setSuccess("Arrêt démarré");
+        await load();
+        setTimeout(() => setSuccess(""), 4000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || `Erreur ${res.status}`);
+        setTimeout(() => setError(""), 4000);
+      }
+    } catch {
+      setError("Erreur réseau");
+      setTimeout(() => setError(""), 4000);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function closeDowntime(id: string) {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/downtimes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, endTime: new Date().toISOString(), userId: session?.user?.id }),
+      });
+      if (res.ok) {
+        setSuccess("Arrêt clôturé");
+        await load();
+        setTimeout(() => setSuccess(""), 4000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || `Erreur ${res.status}`);
+        setTimeout(() => setError(""), 4000);
+      }
+    } catch {
+      setError("Erreur réseau");
+      setTimeout(() => setError(""), 4000);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function openCreateDt() {
+    setEditingDtId(null);
+    setDtForm(DT_EMPTY);
+    setError("");
+    setShowDtModal(true);
+  }
+
+  function openEditDt(dt: any) {
+    setEditingDtId(dt.id);
+    const catId = dt.subCategory?.category?.id || dt.subCategory?.categoryId || "";
+    setDtForm({
+      categoryId: catId,
+      subCategoryId: dt.subCategoryId || "",
+      startTime: dt.startTime ? new Date(dt.startTime).toISOString().slice(0, 16) : "",
+      endTime: dt.endTime ? new Date(dt.endTime).toISOString().slice(0, 16) : "",
+      description: dt.description || "",
+    });
+    setError("");
+    setShowDtModal(true);
+  }
+
+  async function deleteDt(id: string) {
+    if (!window.confirm("Supprimer cet arrêt ?")) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/downtimes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setSuccess("Arrêt supprimé");
+        await load();
+        setTimeout(() => setSuccess(""), 4000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || `Erreur ${res.status}`);
+        setTimeout(() => setError(""), 4000);
+      }
+    } catch {
+      setError("Erreur réseau");
+      setTimeout(() => setError(""), 4000);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitDt() {
+    setSubmitting(true);
+    setError("");
+    try {
+      const isEdit = !!editingDtId;
+      const payload: any = isEdit
+        ? { id: editingDtId, userId: session?.user?.id }
+        : { batchId, userId: session?.user?.id };
+
+      if (dtForm.subCategoryId) payload.subCategoryId = dtForm.subCategoryId;
+      if (dtForm.startTime) payload.startTime = new Date(dtForm.startTime).toISOString();
+      if (dtForm.endTime) payload.endTime = new Date(dtForm.endTime).toISOString();
+      if (dtForm.description) payload.description = dtForm.description;
+
+      const res = await fetch("/api/downtimes", {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      let data;
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        setError(`Erreur serveur (${res.status}): réponse non-JSON`);
+        console.error("Non-JSON response:", text.substring(0, 300));
+        return;
+      }
+      if (!res.ok) {
+        const msg = typeof data.error === "string" ? data.error : JSON.stringify(data.error);
+        setError(msg || `Erreur ${res.status}`);
+        return;
+      }
+      setSuccess(isEdit ? "Arrêt modifié" : "Arrêt créé");
+      setShowDtModal(false);
+      await load();
+      setTimeout(() => setSuccess(""), 4000);
+    } catch {
+      setError("Erreur réseau");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // --- Render ---
+
   if (loading)
     return (
       <div className="flex h-64 items-center justify-center">
@@ -246,9 +417,39 @@ export default function BatchDetailPage() {
     {
       key: "dur",
       header: "Durée (min)",
-      accessor: (r) => (r.duration != null ? Math.round(r.duration) : "En cours"),
+      accessor: (r) => {
+        if (r.endTime == null) {
+          const elapsed = Math.round((Date.now() - new Date(r.startTime).getTime()) / 60000);
+          return (
+            <span className="flex items-center gap-1.5">
+              <Badge variant="warning">En cours</Badge>
+              <span className="text-sm font-medium text-amber-700">{elapsed} min</span>
+            </span>
+          );
+        }
+        return r.duration != null ? Math.round(r.duration) : "—";
+      },
     },
     { key: "desc", header: "Description", accessor: (r) => r.description || "—" },
+    {
+      key: "actions",
+      header: "",
+      accessor: (r) => (
+        <div className="flex gap-1">
+          {r.endTime == null && (
+            <Button variant="ghost" size="sm" onClick={() => closeDowntime(r.id)} title="Clôturer">
+              <Square className="h-4 w-4 text-amber-600" />
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => openEditDt(r)} title="Modifier">
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => deleteDt(r.id)} title="Supprimer">
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -376,7 +577,17 @@ export default function BatchDetailPage() {
       {/* Arrêts enregistrés */}
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold">Arrêts enregistrés</h2>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">Arrêts enregistrés</h2>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={openCreateDt}>
+                <Plus className="h-4 w-4" /> Nouveau
+              </Button>
+              <Button size="sm" onClick={startDowntime} loading={submitting}>
+                <Play className="h-4 w-4" /> Démarrer un arrêt
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {downtimes.length === 0 ? (
@@ -463,6 +674,83 @@ export default function BatchDetailPage() {
             </Button>
             <Button onClick={handleDeclSubmit} loading={submitting}>
               {editingDeclId ? "Enregistrer" : "Ajouter"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal arrêt (création / modification) */}
+      <Modal
+        open={showDtModal}
+        onClose={() => {
+          if (!submitting) setShowDtModal(false);
+        }}
+        title={editingDtId ? "Modifier l'arrêt" : "Nouvel arrêt"}
+      >
+        <div className="space-y-4">
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          <Select
+            label="Catégorie"
+            options={categories.map((c: any) => ({
+              value: c.id,
+              label: c.name,
+            }))}
+            placeholder="— Aucune —"
+            value={dtForm.categoryId}
+            onChange={(e) => {
+              setDt("categoryId", e.target.value);
+              setDt("subCategoryId", "");
+            }}
+            disabled={submitting}
+          />
+          <Select
+            label="Sous-catégorie"
+            options={filteredSubCategories.map((sc: any) => ({
+              value: sc.id,
+              label: sc.name,
+            }))}
+            placeholder={dtForm.categoryId ? "— Aucune —" : "Choisir une catégorie d'abord"}
+            value={dtForm.subCategoryId}
+            onChange={(e) => setDt("subCategoryId", e.target.value)}
+            disabled={submitting || !dtForm.categoryId}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Début"
+              type="datetime-local"
+              value={dtForm.startTime}
+              onChange={(e) => setDt("startTime", e.target.value)}
+              disabled={submitting}
+            />
+            <Input
+              label="Fin"
+              type="datetime-local"
+              value={dtForm.endTime}
+              onChange={(e) => setDt("endTime", e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+            <textarea
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              rows={2}
+              value={dtForm.description}
+              onChange={(e) => setDt("description", e.target.value)}
+              disabled={submitting}
+              placeholder="Description de l'arrêt (optionnel)"
+            />
+          </div>
+          <div className="flex justify-end gap-3 border-t pt-4">
+            <Button variant="outline" onClick={() => setShowDtModal(false)} disabled={submitting}>
+              Annuler
+            </Button>
+            <Button onClick={submitDt} loading={submitting}>
+              {editingDtId ? "Enregistrer" : "Créer"}
             </Button>
           </div>
         </div>
