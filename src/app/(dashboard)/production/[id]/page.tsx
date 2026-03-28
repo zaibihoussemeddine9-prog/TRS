@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { DataTable, Column } from "@/components/ui/data-table";
-import { Plus, Pencil, Trash2, CheckCircle, Package, Clock, AlertTriangle, StopCircle, Play, Square } from "lucide-react";
+  import { Plus, Pencil, Trash2, CheckCircle, Package, Clock, AlertTriangle, StopCircle, Play, Square, Lock } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
 const DECL_EMPTY = { shiftId: "", date: "", quantityProduced: "", actualSpeed: "", microStopMinutes: "", comment: "" };
@@ -196,6 +196,32 @@ export default function BatchDetailPage() {
   const filteredSubCategories = dtForm.categoryId
     ? categories.find((c: any) => c.id === dtForm.categoryId)?.subCategories || []
     : [];
+
+  async function closeBatch() {
+    if (!window.confirm("Clôturer ce lot ? La date/heure de fin sera enregistrée maintenant.")) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/production", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: batchId, endTime: new Date().toISOString(), status: "CLOSED", userId: session?.user?.id }),
+      });
+      if (res.ok) {
+        setSuccess("Lot clôturé");
+        await load();
+        setTimeout(() => setSuccess(""), 4000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Erreur lors de la clôture");
+        setTimeout(() => setError(""), 4000);
+      }
+    } catch {
+      setError("Erreur réseau");
+      setTimeout(() => setError(""), 4000);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function startDowntime() {
     // Check no ongoing downtime already exists
@@ -526,12 +552,19 @@ export default function BatchDetailPage() {
                 Créé par {batch.createdBy?.name} le {formatDate(batch.createdAt)}
               </p>
             </div>
-            <Badge
-              variant={batch.status === "OPEN" ? "success" : "default"}
-              className="text-sm"
-            >
-              {batch.status === "OPEN" ? "Ouvert" : "Clôturé"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={batch.status === "OPEN" ? "success" : "default"}
+                className="text-sm"
+              >
+                {batch.status === "OPEN" ? "Ouvert" : "Clôturé"}
+              </Badge>
+              {batch.status === "OPEN" && (
+                <Button size="sm" variant="danger" onClick={closeBatch} loading={submitting}>
+                  <Lock className="h-4 w-4" /> Clôturer le lot
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
