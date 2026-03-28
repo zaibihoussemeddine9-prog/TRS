@@ -48,6 +48,7 @@ async function main() {
       { name: "Matin", code: "SH-M", startTime: "06:00", endTime: "14:00" },
       { name: "Après-midi", code: "SH-A", startTime: "14:00", endTime: "22:00" },
       { name: "Nuit", code: "SH-N", startTime: "22:00", endTime: "06:00" },
+      { name: "Journée", code: "SH-J", startTime: "08:00", endTime: "17:00" },
     ],
   });
 
