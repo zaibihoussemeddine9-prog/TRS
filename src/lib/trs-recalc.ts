@@ -76,6 +76,8 @@ export async function computeTRS(
   return {
     plannedMinutes: trs.plannedMinutes,
     runningMinutes: trs.runningMinutes,
+    usefulMinutes: Math.round(trs.usefulMinutes * 10) / 10,
+    unjustifiedMinutes: Math.round(trs.unjustifiedMinutes * 10) / 10,
     availability: Math.round(trs.availability * 10000) / 10000,
     performance: Math.round(trs.performance * 10000) / 10000,
     quality: Math.round(trs.quality * 10000) / 10000,

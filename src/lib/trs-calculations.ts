@@ -15,6 +15,8 @@ export interface ShiftTRSInput {
 export interface TRSResult {
   plannedMinutes: number;
   runningMinutes: number;
+  usefulMinutes: number;
+  unjustifiedMinutes: number;
   availability: number;
   performance: number;
   quality: number;
@@ -43,9 +45,20 @@ export function calcShiftTRS(input: ShiftTRSInput): TRSResult {
 
   const quality = 1.0; // calculated at batch close
 
+  // Temps utile = temps théorique pour produire la quantité réelle
+  const usefulMinutes = input.nominalSpeed > 0 ? input.quantityProduced / input.nominalSpeed : 0;
+
+  // Temps non justifié = planifié - arrêts - micro-arrêts - temps utile
+  const unjustifiedMinutes = Math.max(
+    plannedMinutes - input.downtimeMinutes - input.microStopMinutes - usefulMinutes,
+    0
+  );
+
   return {
     plannedMinutes,
     runningMinutes,
+    usefulMinutes,
+    unjustifiedMinutes,
     availability,
     performance,
     quality,
@@ -68,7 +81,7 @@ export function getShiftDurationMinutes(startTime: string, endTime: string): num
 
 /** Aggregate TRS across multiple shift results */
 export function calcAggregateTRS(shifts: TRSResult[]): TRSResult {
-  if (shifts.length === 0) return { plannedMinutes: 0, runningMinutes: 0, availability: 0, performance: 0, quality: 1, oee: 0 };
+  if (shifts.length === 0) return { plannedMinutes: 0, runningMinutes: 0, usefulMinutes: 0, unjustifiedMinutes: 0, availability: 0, performance: 0, quality: 1, oee: 0 };
 
   const totalPlanned = shifts.reduce((s, r) => s + r.plannedMinutes, 0);
   const totalRunning = shifts.reduce((s, r) => s + r.runningMinutes, 0);
@@ -82,7 +95,10 @@ export function calcAggregateTRS(shifts: TRSResult[]): TRSResult {
 
   const performance = availability > 0 ? oee / availability : 0;
 
-  return { plannedMinutes: totalPlanned, runningMinutes: totalRunning, availability, performance, quality: 1, oee };
+  const totalUseful = shifts.reduce((s, r) => s + r.usefulMinutes, 0);
+  const totalUnjustified = shifts.reduce((s, r) => s + r.unjustifiedMinutes, 0);
+
+  return { plannedMinutes: totalPlanned, runningMinutes: totalRunning, usefulMinutes: totalUseful, unjustifiedMinutes: totalUnjustified, availability, performance, quality: 1, oee };
 }
 
 export function getKPIColor(value: number, greenMin = 0.85, orangeMin = 0.65): "green" | "orange" | "red" {

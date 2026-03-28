@@ -89,6 +89,8 @@ export default function BatchDetailPage() {
 
   // Weighted batch TRS
   const totalPlanned = declarations.reduce((s: number, d: any) => s + (d.plannedMinutes || 0), 0);
+  const totalUseful = declarations.reduce((s: number, d: any) => s + (d.usefulMinutes || 0), 0);
+  const totalUnjustified = declarations.reduce((s: number, d: any) => s + (d.unjustifiedMinutes || 0), 0);
   const batchOEE = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.oee || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
   const batchAvail = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.availability || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
   const batchPerf = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.performance || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
@@ -372,6 +374,10 @@ export default function BatchDetailPage() {
     },
     { key: "speed", header: "Cadence", accessor: (r) => r.actualSpeed ? `${r.actualSpeed} u/min` : "—" },
     { key: "micro", header: "µ-arrêts", accessor: (r) => r.microStopMinutes ? `${r.microStopMinutes} min` : "0" },
+    { key: "unjustified", header: "Non justifié", sortable: true, sortValue: (r) => r.unjustifiedMinutes || 0, accessor: (r) => {
+      const v = r.unjustifiedMinutes || 0;
+      return <span className={v > 0 ? "font-semibold text-red-700" : "text-slate-400"}>{Math.round(v)} min</span>;
+    }},
     { key: "oee", header: "TRS", sortable: true, sortValue: (r) => r.oee || 0, accessor: (r) => {
       const v = r.oee || 0;
       const color = v >= 0.85 ? "text-emerald-600" : v >= 0.65 ? "text-amber-600" : "text-red-600";
@@ -529,8 +535,8 @@ export default function BatchDetailPage() {
         </Card>
       </div>
 
-      {/* Avancement + Production */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Avancement + Temps */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-medium text-slate-700">Avancement du lot</p>
@@ -543,15 +549,15 @@ export default function BatchDetailPage() {
             {totalProduced.toLocaleString("fr-FR")} / {standardLotSize > 0 ? standardLotSize.toLocaleString("fr-FR") : "—"} unités
           </p>
         </Card>
-        <Card className="p-4 text-center">
-          <Clock className="h-5 w-5 mx-auto text-amber-500 mb-1" />
-          <p className="text-2xl font-bold text-slate-900">{totalMicroStops} min</p>
-          <p className="text-xs text-slate-500">Micro-arrêts</p>
-        </Card>
-        <Card className="p-4 text-center">
-          <AlertTriangle className="h-5 w-5 mx-auto text-red-500 mb-1" />
-          <p className="text-2xl font-bold text-slate-900">{Math.round(totalDowntimeMin)} min</p>
-          <p className="text-xs text-slate-500">Arrêts déclarés</p>
+        <Card className="p-4">
+          <p className="text-sm font-medium text-slate-700 mb-2">Décomposition du temps</p>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between"><span className="text-slate-500">Temps planifié</span><span className="font-medium">{Math.round(totalPlanned)} min</span></div>
+            <div className="flex justify-between"><span className="text-emerald-600">Temps utile (production)</span><span className="font-medium text-emerald-600">{Math.round(totalUseful)} min</span></div>
+            <div className="flex justify-between"><span className="text-red-600">Arrêts déclarés</span><span className="font-medium text-red-600">{Math.round(totalDowntimeMin)} min</span></div>
+            <div className="flex justify-between"><span className="text-amber-600">Micro-arrêts</span><span className="font-medium text-amber-600">{totalMicroStops} min</span></div>
+            <div className="flex justify-between border-t pt-1.5"><span className="text-slate-900 font-semibold">Temps non justifié</span><span className="font-bold text-red-700">{Math.round(totalUnjustified)} min</span></div>
+          </div>
         </Card>
       </div>
 
