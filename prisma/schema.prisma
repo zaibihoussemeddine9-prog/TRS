@@ -75,14 +75,18 @@ model Workshop {
 }
 
 model PackagingLine {
-  id              String   @id @default(cuid())
-  name            String
-  code            String   @unique
-  workshopId      String
-  defaultSpeed    Float?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  name                  String
+  code                  String   @unique
+  workshopId            String
+  lineType              String?
+  defaultSpeed          Float?
+  formatChangeTime      Float?
+  cleaningTime          Float?
+  targetOEE             Float?
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   workshop         Workshop          @relation(fields: [workshopId], references: [id])
   productionEntries ProductionEntry[]

@@ -56,12 +56,12 @@ async function main() {
   // LINES
   // ========================
   const lines = await Promise.all([
-    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 1", code: "BL01", workshopId: atelierCondit.id, defaultSpeed: 120 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 2", code: "BL02", workshopId: atelierCondit.id, defaultSpeed: 150 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 1", code: "EN01", workshopId: atelierSecond.id, defaultSpeed: 80 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 2", code: "EN02", workshopId: atelierSecond.id, defaultSpeed: 100 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Sirop", code: "SIR01", workshopId: atelierCondit.id, defaultSpeed: 60 } }),
-    prisma.packagingLine.create({ data: { name: "Ligne Tube", code: "TUB01", workshopId: atelierCondit.id, defaultSpeed: 45 } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 1", code: "BL01", workshopId: atelierCondit.id, lineType: "blistereuse", defaultSpeed: 120, formatChangeTime: 30, cleaningTime: 20, targetOEE: 0.85 } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Blistéreuse 2", code: "BL02", workshopId: atelierCondit.id, lineType: "blistereuse", defaultSpeed: 150, formatChangeTime: 25, cleaningTime: 15, targetOEE: 0.88 } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 1", code: "EN01", workshopId: atelierSecond.id, lineType: "encartonneuse", defaultSpeed: 80, formatChangeTime: 20, cleaningTime: 15, targetOEE: 0.82 } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Encartonneuse 2", code: "EN02", workshopId: atelierSecond.id, lineType: "encartonneuse", defaultSpeed: 100, formatChangeTime: 25, cleaningTime: 20, targetOEE: 0.85 } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Sirop", code: "SIR01", workshopId: atelierCondit.id, lineType: "remplisseuse_sirop", defaultSpeed: 60, formatChangeTime: 45, cleaningTime: 40, targetOEE: 0.78 } }),
+    prisma.packagingLine.create({ data: { name: "Ligne Tube", code: "TUB01", workshopId: atelierCondit.id, lineType: "remplisseuse_tube", defaultSpeed: 45, formatChangeTime: 35, cleaningTime: 25, targetOEE: 0.80 } }),
   ]);
 
   // ========================
