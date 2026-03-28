@@ -27,31 +27,52 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Aggregate per batch using stored TRS from declarations
     const batchStats = batches.map((b) => {
-      const totalProduced = b.productionDeclarations.reduce((s, d) => s + d.quantityProduced, 0);
-      const totalMicroStops = b.productionDeclarations.reduce((s, d) => s + (d.microStopMinutes || 0), 0);
+      const decls = b.productionDeclarations;
+      const totalProduced = decls.reduce((s, d) => s + d.quantityProduced, 0);
+      const totalMicroStops = decls.reduce((s, d) => s + (d.microStopMinutes || 0), 0);
       const totalDowntime = b.downtimeEvents.reduce((s, e) => s + (e.duration || 0), 0);
-      return { ...b, totalProduced, totalMicroStops, totalDowntime };
+
+      // Weighted OEE from declarations
+      const totalPlanned = decls.reduce((s, d) => s + (d.plannedMinutes || 0), 0);
+      const weightedOEE = totalPlanned > 0
+        ? decls.reduce((s, d) => s + (d.oee || 0) * (d.plannedMinutes || 0), 0) / totalPlanned
+        : 0;
+      const weightedAvail = totalPlanned > 0
+        ? decls.reduce((s, d) => s + (d.availability || 0) * (d.plannedMinutes || 0), 0) / totalPlanned
+        : 0;
+      const weightedPerf = totalPlanned > 0
+        ? decls.reduce((s, d) => s + (d.performance || 0) * (d.plannedMinutes || 0), 0) / totalPlanned
+        : 0;
+
+      return { ...b, totalProduced, totalMicroStops, totalDowntime, oee: weightedOEE, availability: weightedAvail, performance: weightedPerf, totalPlanned };
     });
 
+    // Global aggregation
     const totalProduced = batchStats.reduce((s, b) => s + b.totalProduced, 0);
     const totalDowntime = batchStats.reduce((s, b) => s + b.totalDowntime, 0);
-    const totalRejects = 0; // Calculated at batch close time
-    const quality = 1; // Will be computed when reject data is available
+    const totalPlanned = batchStats.reduce((s, b) => s + b.totalPlanned, 0);
+    const globalOEE = totalPlanned > 0 ? batchStats.reduce((s, b) => s + b.oee * b.totalPlanned, 0) / totalPlanned : 0;
+    const globalAvail = totalPlanned > 0 ? batchStats.reduce((s, b) => s + b.availability * b.totalPlanned, 0) / totalPlanned : 0;
+    const globalPerf = totalPlanned > 0 ? batchStats.reduce((s, b) => s + b.performance * b.totalPlanned, 0) / totalPlanned : 0;
 
+    // Per-line KPIs
     const lines = await prisma.line.findMany({ where: { active: true } });
     const lineKPIs = lines.map((line) => {
       const lb = batchStats.filter((b) => b.lineId === line.id);
-      const prod = lb.reduce((s, b) => s + b.totalProduced, 0);
-      const conf = lb.reduce((s, b) => s + b.totalProduced, 0);
+      const linePlanned = lb.reduce((s, b) => s + b.totalPlanned, 0);
+      const lineOEE = linePlanned > 0 ? lb.reduce((s, b) => s + b.oee * b.totalPlanned, 0) / linePlanned : 0;
+      const lineAvail = linePlanned > 0 ? lb.reduce((s, b) => s + b.availability * b.totalPlanned, 0) / linePlanned : 0;
+      const linePerf = linePlanned > 0 ? lb.reduce((s, b) => s + b.performance * b.totalPlanned, 0) / linePlanned : 0;
       return {
         lineId: line.id, lineName: line.name, lineCode: line.code,
-        availability: 0, performance: 0,
-        quality: prod > 0 ? conf / prod : 0, oee: 0,
+        availability: lineAvail, performance: linePerf, quality: 1, oee: lineOEE,
         entryCount: lb.length,
       };
     });
 
+    // Daily trend
     const dailyMap = new Map<string, typeof batchStats>();
     batchStats.forEach((b) => {
       const key = new Date(b.date).toISOString().split("T")[0];
@@ -61,11 +82,14 @@ export async function GET(req: NextRequest) {
     const dailyTrend = Array.from(dailyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, dayBatches]) => {
-        const prod = dayBatches.reduce((s, b) => s + b.totalProduced, 0);
-        const conf = dayBatches.reduce((s, b) => s + b.totalProduced, 0);
-        return { date, availability: 0, performance: 0, quality: prod > 0 ? conf / prod : 0, oee: 0 };
+        const dayPlanned = dayBatches.reduce((s, b) => s + b.totalPlanned, 0);
+        const dayOEE = dayPlanned > 0 ? dayBatches.reduce((s, b) => s + b.oee * b.totalPlanned, 0) / dayPlanned : 0;
+        const dayAvail = dayPlanned > 0 ? dayBatches.reduce((s, b) => s + b.availability * b.totalPlanned, 0) / dayPlanned : 0;
+        const dayPerf = dayPlanned > 0 ? dayBatches.reduce((s, b) => s + b.performance * b.totalPlanned, 0) / dayPlanned : 0;
+        return { date, availability: dayAvail, performance: dayPerf, quality: 1, oee: dayOEE };
       });
 
+    // Downtime by category
     const causeMap = new Map<string, { name: string; total: number; count: number }>();
     batchStats.forEach((b) => {
       b.downtimeEvents.forEach((e) => {
@@ -79,10 +103,10 @@ export async function GET(req: NextRequest) {
     const downtimeByCause = Array.from(causeMap.values()).sort((a, b) => b.total - a.total);
 
     return NextResponse.json({
-      global: { availability: 0, performance: 0, quality, oee: 0 },
+      global: { availability: globalAvail, performance: globalPerf, quality: 1, oee: globalOEE },
       lineKPIs, dailyTrend, downtimeByCause,
-      totalDowntime, totalRejects, totalProduced,
-      rejectRate: totalProduced > 0 ? totalRejects / totalProduced : 0,
+      totalDowntime, totalRejects: 0, totalProduced,
+      rejectRate: 0,
       downtimeCount: batchStats.reduce((s, b) => s + b.downtimeEvents.length, 0),
       entryCount: batches.length,
     });

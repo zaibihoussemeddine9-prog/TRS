@@ -13,7 +13,7 @@ import { DataTable, Column } from "@/components/ui/data-table";
 import { Plus, Pencil, Trash2, CheckCircle, Package, Clock, AlertTriangle } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
-const DECL_EMPTY = { shiftId: "", date: "", quantityProduced: "", microStopMinutes: "", comment: "" };
+const DECL_EMPTY = { shiftId: "", date: "", quantityProduced: "", actualSpeed: "", microStopMinutes: "", comment: "" };
 
 export default function BatchDetailPage() {
   const params = useParams();
@@ -68,6 +68,14 @@ export default function BatchDetailPage() {
   const totalProduced = declarations.reduce((s: number, d: any) => s + (d.quantityProduced || 0), 0);
   const totalMicroStops = declarations.reduce((s: number, d: any) => s + (d.microStopMinutes || 0), 0);
   const totalDowntimeMin = downtimes.reduce((s: number, d: any) => s + (d.duration || 0), 0);
+  const standardLotSize = batch?.product?.standardLotSize || 0;
+  const progressPct = standardLotSize > 0 ? Math.min((totalProduced / standardLotSize) * 100, 100) : 0;
+
+  // Weighted batch TRS
+  const totalPlanned = declarations.reduce((s: number, d: any) => s + (d.plannedMinutes || 0), 0);
+  const batchOEE = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.oee || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
+  const batchAvail = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.availability || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
+  const batchPerf = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.performance || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
 
   function openCreateDecl() {
     setEditingDeclId(null);
@@ -85,6 +93,7 @@ export default function BatchDetailPage() {
       shiftId: d.shiftId || "",
       date: d.date ? new Date(d.date).toISOString().split("T")[0] : "",
       quantityProduced: d.quantityProduced?.toString() || "",
+      actualSpeed: d.actualSpeed?.toString() || "",
       microStopMinutes: d.microStopMinutes?.toString() || "",
       comment: d.comment || "",
     });
@@ -105,6 +114,7 @@ export default function BatchDetailPage() {
         shiftId: declForm.shiftId,
         date: declForm.date,
         quantityProduced: Number(declForm.quantityProduced),
+        actualSpeed: Number(declForm.actualSpeed) || 0,
         microStopMinutes: Number(declForm.microStopMinutes) || 0,
         comment: declForm.comment || null,
         userId: session?.user?.id,
@@ -189,7 +199,13 @@ export default function BatchDetailPage() {
       sortValue: (r) => r.quantityProduced,
       accessor: (r) => r.quantityProduced?.toLocaleString("fr-FR") || "0",
     },
-    { key: "micro", header: "Micro-arrêts (min)", accessor: (r) => r.microStopMinutes || 0 },
+    { key: "speed", header: "Cadence", accessor: (r) => r.actualSpeed ? `${r.actualSpeed} u/min` : "—" },
+    { key: "micro", header: "µ-arrêts", accessor: (r) => r.microStopMinutes ? `${r.microStopMinutes} min` : "0" },
+    { key: "oee", header: "TRS", sortable: true, sortValue: (r) => r.oee || 0, accessor: (r) => {
+      const v = r.oee || 0;
+      const color = v >= 0.85 ? "text-emerald-600" : v >= 0.65 ? "text-amber-600" : "text-red-600";
+      return <span className={`font-semibold ${color}`}>{(v * 100).toFixed(1)}%</span>;
+    }},
     {
       key: "comment",
       header: "Commentaire",
@@ -290,28 +306,51 @@ export default function BatchDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Cumuls */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card className="p-4 text-center">
-          <Package className="h-5 w-5 mx-auto text-blue-500 mb-1" />
-          <p className="text-2xl font-bold text-slate-900">
-            {totalProduced.toLocaleString("fr-FR")}
+      {/* TRS + Cumuls */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Card className={`p-4 text-center border-l-4 ${batchOEE >= 0.85 ? "border-l-emerald-500" : batchOEE >= 0.65 ? "border-l-amber-500" : "border-l-red-500"}`}>
+          <p className={`text-2xl font-bold ${batchOEE >= 0.85 ? "text-emerald-600" : batchOEE >= 0.65 ? "text-amber-600" : "text-red-600"}`}>
+            {(batchOEE * 100).toFixed(1)}%
           </p>
-          <p className="text-xs text-slate-500">Total produit</p>
+          <p className="text-xs text-slate-500">TRS Lot</p>
         </Card>
         <Card className="p-4 text-center">
-          <Clock className="h-5 w-5 mx-auto text-amber-500 mb-1" />
-          <p className="text-2xl font-bold text-slate-900">{totalMicroStops}</p>
-          <p className="text-xs text-slate-500">Micro-arrêts (min)</p>
+          <p className="text-2xl font-bold text-blue-600">{(batchAvail * 100).toFixed(1)}%</p>
+          <p className="text-xs text-slate-500">Disponibilité</p>
         </Card>
         <Card className="p-4 text-center">
-          <AlertTriangle className="h-5 w-5 mx-auto text-red-500 mb-1" />
-          <p className="text-2xl font-bold text-slate-900">{Math.round(totalDowntimeMin)}</p>
-          <p className="text-xs text-slate-500">Arrêts (min)</p>
+          <p className="text-2xl font-bold text-amber-600">{(batchPerf * 100).toFixed(1)}%</p>
+          <p className="text-xs text-slate-500">Performance</p>
         </Card>
         <Card className="p-4 text-center">
           <p className="text-2xl font-bold text-slate-900">{declarations.length}</p>
           <p className="text-xs text-slate-500">Shifts déclarés</p>
+        </Card>
+      </div>
+
+      {/* Avancement + Production */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-slate-700">Avancement du lot</p>
+            <p className="text-sm font-bold text-blue-600">{progressPct.toFixed(0)}%</p>
+          </div>
+          <div className="h-3 w-full rounded-full bg-slate-100">
+            <div className="h-3 rounded-full bg-blue-600 transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            {totalProduced.toLocaleString("fr-FR")} / {standardLotSize > 0 ? standardLotSize.toLocaleString("fr-FR") : "—"} unités
+          </p>
+        </Card>
+        <Card className="p-4 text-center">
+          <Clock className="h-5 w-5 mx-auto text-amber-500 mb-1" />
+          <p className="text-2xl font-bold text-slate-900">{totalMicroStops} min</p>
+          <p className="text-xs text-slate-500">Micro-arrêts</p>
+        </Card>
+        <Card className="p-4 text-center">
+          <AlertTriangle className="h-5 w-5 mx-auto text-red-500 mb-1" />
+          <p className="text-2xl font-bold text-slate-900">{Math.round(totalDowntimeMin)} min</p>
+          <p className="text-xs text-slate-500">Arrêts déclarés</p>
         </Card>
       </div>
 
@@ -380,14 +419,26 @@ export default function BatchDetailPage() {
             onChange={(e) => setD("date", e.target.value)}
             disabled={submitting}
           />
-          <Input
-            label="Quantité produite *"
-            type="number"
-            min="0"
-            value={declForm.quantityProduced}
-            onChange={(e) => setD("quantityProduced", e.target.value)}
-            disabled={submitting}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Quantité produite *"
+              type="number"
+              min="0"
+              value={declForm.quantityProduced}
+              onChange={(e) => setD("quantityProduced", e.target.value)}
+              disabled={submitting}
+            />
+            <Input
+              label="Cadence réelle (u/min)"
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder={batch?.product?.nominalSpeed ? `Nominale: ${batch.product.nominalSpeed}` : ""}
+              value={declForm.actualSpeed}
+              onChange={(e) => setD("actualSpeed", e.target.value)}
+              disabled={submitting}
+            />
+          </div>
           <Input
             label="Durée totale micro-arrêts (min)"
             type="number"

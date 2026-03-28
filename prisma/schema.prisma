@@ -218,8 +218,18 @@ model ProductionDeclaration {
   shiftId          String
   date             DateTime @db.Date
   quantityProduced Float    @default(0)
+  actualSpeed      Float    @default(0)
   microStopMinutes Float    @default(0)
   comment          String?
+
+  // Calculated per shift
+  plannedMinutes   Float?
+  runningMinutes   Float?
+  availability     Float?
+  performance      Float?
+  quality          Float?
+  oee              Float?
+
   createdById      String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

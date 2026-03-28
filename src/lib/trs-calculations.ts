@@ -1,69 +1,88 @@
 /**
- * TRS/OEE Calculation Engine — simplified
+ * TRS/OEE Calculation Engine
  * Times in minutes, speeds in units/minute, quantities in units.
  */
 
-export interface BatchData {
-  plannedTime: number;
-  actualRunningTime: number;
-  theoreticalSpeed: number;
+export interface ShiftTRSInput {
+  shiftDurationMinutes: number; // durée brute du shift
+  pauseMinutes: number;         // pause fixe (30 min)
+  downtimeMinutes: number;      // arrêts déclarés (DowntimeEvent)
+  microStopMinutes: number;     // micro-arrêts
   quantityProduced: number;
-  quantityConform: number;
+  nominalSpeed: number;         // cadence nominale du produit (u/min)
 }
 
 export interface TRSResult {
+  plannedMinutes: number;
+  runningMinutes: number;
   availability: number;
   performance: number;
   quality: number;
   oee: number;
 }
 
-/** Availability = actual running / planned */
-export function calcAvailability(d: BatchData): number {
-  if (d.plannedTime <= 0) return 0;
-  return Math.min(d.actualRunningTime / d.plannedTime, 1);
+const PAUSE_MINUTES = 30;
+
+/**
+ * Calculate TRS for a single shift declaration.
+ * - Planned = shift duration - pause
+ * - Running = planned - downtimes - micro-stops
+ * - Availability = running / planned
+ * - Performance = qty / (nominal speed × running time)
+ * - Quality = 1.0 (reject computed at batch close)
+ * - OEE = A × P × Q
+ */
+export function calcShiftTRS(input: ShiftTRSInput): TRSResult {
+  const plannedMinutes = input.shiftDurationMinutes - input.pauseMinutes;
+  const runningMinutes = Math.max(plannedMinutes - input.downtimeMinutes - input.microStopMinutes, 0);
+
+  const availability = plannedMinutes > 0 ? Math.min(runningMinutes / plannedMinutes, 1) : 0;
+
+  const theoreticalQty = input.nominalSpeed > 0 ? input.nominalSpeed * runningMinutes : 0;
+  const performance = theoreticalQty > 0 ? Math.min(input.quantityProduced / theoreticalQty, 1) : 0;
+
+  const quality = 1.0; // calculated at batch close
+
+  return {
+    plannedMinutes,
+    runningMinutes,
+    availability,
+    performance,
+    quality,
+    oee: availability * performance * quality,
+  };
 }
 
-/** Performance = (theoretical time for qty) / actual running */
-export function calcPerformance(d: BatchData): number {
-  if (d.actualRunningTime <= 0 || d.theoreticalSpeed <= 0) return 0;
-  const theoreticalTime = d.quantityProduced / d.theoreticalSpeed;
-  return Math.min(theoreticalTime / d.actualRunningTime, 1);
+/**
+ * Calculate shift duration in minutes from startTime/endTime strings (HH:MM).
+ * Handles overnight shifts (e.g., 22:00-06:00 = 480 min).
+ */
+export function getShiftDurationMinutes(startTime: string, endTime: string): number {
+  const [sh, sm] = startTime.split(":").map(Number);
+  const [eh, em] = endTime.split(":").map(Number);
+  let start = sh * 60 + sm;
+  let end = eh * 60 + em;
+  if (end <= start) end += 24 * 60; // overnight
+  return end - start;
 }
 
-/** Quality = conform / produced */
-export function calcQuality(d: BatchData): number {
-  if (d.quantityProduced <= 0) return 0;
-  return Math.min(d.quantityConform / d.quantityProduced, 1);
-}
+/** Aggregate TRS across multiple shift results */
+export function calcAggregateTRS(shifts: TRSResult[]): TRSResult {
+  if (shifts.length === 0) return { plannedMinutes: 0, runningMinutes: 0, availability: 0, performance: 0, quality: 1, oee: 0 };
 
-/** OEE = A × P × Q */
-export function calcOEE(d: BatchData): TRSResult {
-  const availability = calcAvailability(d);
-  const performance = calcPerformance(d);
-  const quality = calcQuality(d);
-  return { availability, performance, quality, oee: availability * performance * quality };
-}
+  const totalPlanned = shifts.reduce((s, r) => s + r.plannedMinutes, 0);
+  const totalRunning = shifts.reduce((s, r) => s + r.runningMinutes, 0);
 
-/** Aggregate OEE across batches */
-export function calcAggregateOEE(batches: BatchData[]): TRSResult {
-  if (batches.length === 0) return { availability: 0, performance: 0, quality: 0, oee: 0 };
+  const availability = totalPlanned > 0 ? Math.min(totalRunning / totalPlanned, 1) : 0;
 
-  const t = batches.reduce(
-    (a, b) => ({
-      plannedTime: a.plannedTime + b.plannedTime,
-      actualRunningTime: a.actualRunningTime + b.actualRunningTime,
-      quantityProduced: a.quantityProduced + b.quantityProduced,
-      quantityConform: a.quantityConform + b.quantityConform,
-      theoreticalTime: a.theoreticalTime + (b.theoreticalSpeed > 0 ? b.quantityProduced / b.theoreticalSpeed : 0),
-    }),
-    { plannedTime: 0, actualRunningTime: 0, quantityProduced: 0, quantityConform: 0, theoreticalTime: 0 }
-  );
+  // Weighted performance: sum(qty) / sum(nominal × running)
+  // We can't recompute from TRSResult alone, so use weighted average
+  const totalOEEWeighted = shifts.reduce((s, r) => s + r.oee * r.plannedMinutes, 0);
+  const oee = totalPlanned > 0 ? totalOEEWeighted / totalPlanned : 0;
 
-  const availability = t.plannedTime > 0 ? Math.min(t.actualRunningTime / t.plannedTime, 1) : 0;
-  const performance = t.actualRunningTime > 0 ? Math.min(t.theoreticalTime / t.actualRunningTime, 1) : 0;
-  const quality = t.quantityProduced > 0 ? Math.min(t.quantityConform / t.quantityProduced, 1) : 0;
-  return { availability, performance, quality, oee: availability * performance * quality };
+  const performance = availability > 0 ? oee / availability : 0;
+
+  return { plannedMinutes: totalPlanned, runningMinutes: totalRunning, availability, performance, quality: 1, oee };
 }
 
 export function getKPIColor(value: number, greenMin = 0.85, orangeMin = 0.65): "green" | "orange" | "red" {
