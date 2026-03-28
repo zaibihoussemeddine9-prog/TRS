@@ -11,7 +11,7 @@ async function main() {
   if (userCount === 0) {
     const pw = await bcrypt.hash("admin123", 12);
     await prisma.user.create({
-      data: { email: "admin@pharma.com", name: "Admin", password: pw, role: "ADMIN" },
+      data: { email: "admin@pharma.com", name: "Admin Pharma", firstName: "Admin", lastName: "Pharma", department: "Direction", position: "Administrateur", password: pw, role: "ADMIN" },
     });
     console.log("  Admin créé");
   }
