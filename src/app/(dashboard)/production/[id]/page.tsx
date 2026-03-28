@@ -36,18 +36,25 @@ export default function BatchDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [batchRes, declRes, dtRes, shiftRes] = await Promise.all([
-        fetch(`/api/production/${batchId}`),
-        fetch(`/api/production-declarations?batchId=${batchId}`),
-        fetch(`/api/downtimes?batchId=${batchId}`),
-        fetch("/api/shifts"),
+      const batchRes = await fetch(`/api/production?id=${batchId}`);
+      if (batchRes.ok) {
+        setBatch(await batchRes.json());
+      } else {
+        setBatch(null);
+        setLoading(false);
+        return;
+      }
+
+      const [declRes, dtRes, shiftRes] = await Promise.all([
+        fetch(`/api/production-declarations?batchId=${batchId}`).catch(() => null),
+        fetch(`/api/downtimes?batchId=${batchId}`).catch(() => null),
+        fetch("/api/shifts").catch(() => null),
       ]);
-      setBatch(batchRes.ok ? await batchRes.json() : null);
-      setDeclarations(declRes.ok ? await declRes.json() : []);
-      setDowntimes(dtRes.ok ? await dtRes.json() : []);
-      setShifts(shiftRes.ok ? await shiftRes.json() : []);
+      setDeclarations(declRes?.ok ? await declRes.json() : []);
+      setDowntimes(dtRes?.ok ? await dtRes.json() : []);
+      setShifts(shiftRes?.ok ? await shiftRes.json() : []);
     } catch {
-      /* ignore */
+      setBatch(null);
     } finally {
       setLoading(false);
     }

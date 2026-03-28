@@ -6,10 +6,30 @@ import { resolveUserId } from "@/lib/resolve-user";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
   const lineId = searchParams.get("lineId");
   const status = searchParams.get("status");
   const dateFrom = searchParams.get("dateFrom");
   const dateTo = searchParams.get("dateTo");
+
+  // Single batch by ID
+  if (id) {
+    try {
+      const batch = await prisma.batch.findUnique({
+        where: { id },
+        include: {
+          line: true, product: true, shift: true,
+          createdBy: { select: { name: true } },
+          _count: { select: { downtimeEvents: true, productionDeclarations: true } },
+        },
+      });
+      if (!batch) return NextResponse.json({ error: "Lot introuvable" }, { status: 404 });
+      return NextResponse.json(batch);
+    } catch (err) {
+      console.error("[GET /api/production?id]", err);
+      return NextResponse.json({ error: "Erreur chargement" }, { status: 500 });
+    }
+  }
 
   const where: Record<string, unknown> = {};
   if (lineId) where.lineId = lineId;
