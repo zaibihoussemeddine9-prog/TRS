@@ -39,9 +39,19 @@ export async function POST(req: NextRequest) {
     const batch = await prisma.batch.findUnique({ where: { id: d.batchId } });
     if (!batch) return NextResponse.json({ error: "Lot introuvable" }, { status: 404 });
 
+    // C4: Block declarations on CLOSED batches
+    if (batch.status === "CLOSED") {
+      return NextResponse.json({ error: "Impossible d'ajouter des déclarations à un lot clôturé." }, { status: 400 });
+    }
+
     // 2. Load the shift
     const shift = await prisma.shift.findUnique({ where: { id: d.shiftId } });
     if (!shift) return NextResponse.json({ error: "Shift introuvable" }, { status: 404 });
+
+    // H6: Check shift is active
+    if (!shift.active) {
+      return NextResponse.json({ error: "Ce shift est inactif." }, { status: 400 });
+    }
 
     // 3. Check shift is within batch window
     if (!shiftWithinBatch(d.date, shift, batch.startTime, batch.endTime)) {

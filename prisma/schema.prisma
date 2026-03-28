@@ -246,6 +246,7 @@ model ProductionDeclaration {
 
   @@index([batchId])
   @@index([shiftId])
+  @@unique([batchId, shiftId, date])
 }
 
 // ============================================

@@ -87,6 +87,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // C3: Validate endTime > startTime if both provided
+    if (d.startTime && d.endTime) {
+      const st = new Date(d.startTime);
+      const et = new Date(d.endTime);
+      if (et <= st) {
+        return NextResponse.json({ error: "La date de fin doit être après la date de début." }, { status: 400 });
+      }
+    }
+
+    // C5: Check no other OPEN batch on the same line
+    const openOnLine = await prisma.batch.count({ where: { lineId: d.lineId, status: "OPEN" } });
+    if (openOnLine > 0) {
+      return NextResponse.json({ error: "Un lot est déjà ouvert sur cette ligne. Clôturez-le d'abord." }, { status: 400 });
+    }
+
     const batch = await prisma.batch.create({
       data: {
         lot: d.lot,
@@ -117,6 +132,20 @@ export async function PUT(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
 
     const userId = await resolveUserId(body.userId);
+
+    // H7: Block modifications to CLOSED batches (except status change for closing)
+    const existing = await prisma.batch.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Lot introuvable" }, { status: 404 });
+
+    // H2: Prevent reopening a CLOSED batch
+    if (existing.status === "CLOSED" && status === "OPEN") {
+      return NextResponse.json({ error: "Un lot clôturé ne peut pas être rouvert." }, { status: 400 });
+    }
+
+    // H7: Block field edits on CLOSED batch (allow only comment)
+    if (existing.status === "CLOSED" && status !== "CLOSED" && (startTime || endTime || lot || lineId || productId)) {
+      return NextResponse.json({ error: "Un lot clôturé ne peut pas être modifié." }, { status: 400 });
+    }
 
     // Validate endTime > startTime if both provided
     if (startTime && endTime) {

@@ -66,6 +66,11 @@ export async function POST(req: NextRequest) {
     const batch = await prisma.batch.findUnique({ where: { id: batchId } });
     if (!batch) return NextResponse.json({ error: "Lot introuvable" }, { status: 404 });
 
+    // C4: Block downtimes on CLOSED batches
+    if (batch.status === "CLOSED") {
+      return NextResponse.json({ error: "Impossible d'ajouter des arrêts à un lot clôturé." }, { status: 400 });
+    }
+
     const start = startTime ? new Date(startTime) : new Date();
     const end = endTime ? new Date(endTime) : null;
 
