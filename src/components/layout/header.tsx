@@ -13,7 +13,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
   const roleLabels: Record<string, string> = {
     ADMIN: "Administrateur",
     RESPONSABLE: "Responsable",
-    OPERATEUR: "Op\u00e9rateur",
+    OPERATEUR: "Opérateur",
     LECTURE_SEULE: "Lecture seule",
   };
 

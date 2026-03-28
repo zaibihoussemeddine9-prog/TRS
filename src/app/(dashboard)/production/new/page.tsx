@@ -11,7 +11,7 @@ import { formatPercent } from "@/lib/trs-calculations";
 
 const SHIFTS = [
   { value: "Matin", label: "Matin" },
-  { value: "Apr\u00e8s-midi", label: "Apr\u00e8s-midi" },
+  { value: "Après-midi", label: "Après-midi" },
   { value: "Nuit", label: "Nuit" },
 ];
 
@@ -78,14 +78,14 @@ export default function NewProductionPage() {
         const data = await res.json();
         setError(data.error || "Erreur");
       }
-    } catch { setError("Erreur r\u00e9seau"); } finally { setSubmitting(false); }
+    } catch { setError("Erreur réseau"); } finally { setSubmitting(false); }
   }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Nouvelle saisie production</h1>
-        <p className="text-sm text-slate-500">Remplissez les donn\u00e9es de production du shift</p>
+        <p className="text-sm text-slate-500">Remplissez les données de production du shift</p>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -93,9 +93,9 @@ export default function NewProductionPage() {
       {/* Live OEE preview */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Disponibilit\u00e9", value: availability },
+          { label: "Disponibilité", value: availability },
           { label: "Performance", value: performance },
-          { label: "Qualit\u00e9", value: quality },
+          { label: "Qualité", value: quality },
           { label: "TRS", value: oee },
         ].map((kpi) => (
           <div key={kpi.label} className="rounded-lg border bg-white p-3 text-center">
@@ -110,11 +110,11 @@ export default function NewProductionPage() {
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Input label="Date *" type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
-            <Select label="Ligne *" options={lines.map((l) => ({ value: l.id, label: l.name }))} placeholder="S\u00e9lectionner" value={form.lineId} onChange={(e) => set("lineId", e.target.value)} />
-            <Select label="Produit *" options={products.map((p) => ({ value: p.id, label: p.name }))} placeholder="S\u00e9lectionner" value={form.productId} onChange={(e) => set("productId", e.target.value)} />
-            <Input label="N\u00b0 Lot *" value={form.lot} onChange={(e) => set("lot", e.target.value)} />
-            <Select label="Shift" options={SHIFTS} placeholder="S\u00e9lectionner" value={form.shift} onChange={(e) => set("shift", e.target.value)} />
-            <Input label="N\u00b0 OF / OC" value={form.orderNumber} onChange={(e) => set("orderNumber", e.target.value)} />
+            <Select label="Ligne *" options={lines.map((l) => ({ value: l.id, label: l.name }))} placeholder="Sélectionner" value={form.lineId} onChange={(e) => set("lineId", e.target.value)} />
+            <Select label="Produit *" options={products.map((p) => ({ value: p.id, label: p.name }))} placeholder="Sélectionner" value={form.productId} onChange={(e) => set("productId", e.target.value)} />
+            <Input label="N° Lot *" value={form.lot} onChange={(e) => set("lot", e.target.value)} />
+            <Select label="Shift" options={SHIFTS} placeholder="Sélectionner" value={form.shift} onChange={(e) => set("shift", e.target.value)} />
+            <Input label="N° OF / OC" value={form.orderNumber} onChange={(e) => set("orderNumber", e.target.value)} />
           </div>
         </CardContent>
       </Card>
@@ -123,21 +123,21 @@ export default function NewProductionPage() {
         <CardHeader><h3 className="font-semibold">Temps (en minutes)</h3></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            <Input label="Temps planifi\u00e9" type="number" step="0.1" value={form.plannedTime} onChange={(e) => set("plannedTime", e.target.value)} />
-            <Input label="Temps fonctionnement r\u00e9el" type="number" step="0.1" value={form.actualRunningTime} onChange={(e) => set("actualRunningTime", e.target.value)} />
+            <Input label="Temps planifié" type="number" step="0.1" value={form.plannedTime} onChange={(e) => set("plannedTime", e.target.value)} />
+            <Input label="Temps fonctionnement réel" type="number" step="0.1" value={form.actualRunningTime} onChange={(e) => set("actualRunningTime", e.target.value)} />
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><h3 className="font-semibold">Vitesses et quantit\u00e9s</h3></CardHeader>
+        <CardHeader><h3 className="font-semibold">Vitesses et quantités</h3></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            <Input label="Vitesse th\u00e9orique (u/min)" type="number" step="0.1" value={form.theoreticalSpeed} onChange={(e) => set("theoreticalSpeed", e.target.value)} />
-            <Input label="Vitesse r\u00e9elle (u/min)" type="number" step="0.1" value={form.actualSpeed} onChange={(e) => set("actualSpeed", e.target.value)} />
-            <Input label="Quantit\u00e9 produite" type="number" step="1" value={form.quantityProduced} onChange={(e) => set("quantityProduced", e.target.value)} />
-            <Input label="Quantit\u00e9 conforme" type="number" step="1" value={form.quantityConform} onChange={(e) => set("quantityConform", e.target.value)} />
-            <Input label="Quantit\u00e9 rejet\u00e9e" type="number" step="1" value={form.quantityRejected} onChange={(e) => set("quantityRejected", e.target.value)} />
+            <Input label="Vitesse théorique (u/min)" type="number" step="0.1" value={form.theoreticalSpeed} onChange={(e) => set("theoreticalSpeed", e.target.value)} />
+            <Input label="Vitesse réelle (u/min)" type="number" step="0.1" value={form.actualSpeed} onChange={(e) => set("actualSpeed", e.target.value)} />
+            <Input label="Quantité produite" type="number" step="1" value={form.quantityProduced} onChange={(e) => set("quantityProduced", e.target.value)} />
+            <Input label="Quantité conforme" type="number" step="1" value={form.quantityConform} onChange={(e) => set("quantityConform", e.target.value)} />
+            <Input label="Quantité rejetée" type="number" step="1" value={form.quantityRejected} onChange={(e) => set("quantityRejected", e.target.value)} />
           </div>
         </CardContent>
       </Card>
@@ -148,7 +148,7 @@ export default function NewProductionPage() {
           <textarea
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             rows={3}
-            placeholder="Commentaire op\u00e9rateur / superviseur..."
+            placeholder="Commentaire opérateur / superviseur..."
             value={form.comment}
             onChange={(e) => set("comment", e.target.value)}
           />

@@ -49,8 +49,8 @@ export default function ProductionPage() {
     const labels: Record<string, string> = {
       DRAFT: "Brouillon",
       SUBMITTED: "Soumis",
-      VALIDATED: "Valid\u00e9",
-      REJECTED: "Rejet\u00e9",
+      VALIDATED: "Validé",
+      REJECTED: "Rejeté",
     };
     return <Badge variant={map[status] || "default"}>{labels[status] || status}</Badge>;
   };
@@ -67,11 +67,11 @@ export default function ProductionPage() {
     { key: "line", header: "Ligne", sortable: true, sortValue: (r) => r.line?.name || "", accessor: (r) => r.line?.code },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name },
     { key: "lot", header: "Lot", accessor: (r) => r.lot },
-    { key: "shift", header: "Shift", accessor: (r) => r.shift || "\u2014" },
-    { key: "qty", header: "Qt\u00e9 prod.", sortable: true, sortValue: (r) => r.quantityProduced, accessor: (r) => r.quantityProduced?.toLocaleString("fr-FR") },
+    { key: "shift", header: "Shift", accessor: (r) => r.shift || "—" },
+    { key: "qty", header: "Qté prod.", sortable: true, sortValue: (r) => r.quantityProduced, accessor: (r) => r.quantityProduced?.toLocaleString("fr-FR") },
     {
       key: "oee", header: "TRS", sortable: true, sortValue: (r) => r.oee || 0,
-      accessor: (r) => <span className={oeeColor(r.oee)}>{r.oee != null ? formatPercent(r.oee) : "\u2014"}</span>,
+      accessor: (r) => <span className={oeeColor(r.oee)}>{r.oee != null ? formatPercent(r.oee) : "—"}</span>,
     },
     { key: "status", header: "Statut", accessor: (r) => statusBadge(r.status) },
   ];
@@ -81,7 +81,7 @@ export default function ProductionPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Saisie Production</h1>
-          <p className="text-sm text-slate-500">Gestion des donn\u00e9es de production</p>
+          <p className="text-sm text-slate-500">Gestion des données de production</p>
         </div>
         <Link href="/production/new">
           <Button><Plus className="h-4 w-4" /> Nouvelle saisie</Button>

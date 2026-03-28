@@ -22,7 +22,7 @@ interface UserData {
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrateur",
   RESPONSABLE: "Responsable",
-  OPERATEUR: "Op\u00e9rateur",
+  OPERATEUR: "Opérateur",
   LECTURE_SEULE: "Lecture seule",
 };
 
@@ -59,11 +59,11 @@ export default function UsersPage() {
   const columns: Column<UserData>[] = [
     { key: "name", header: "Nom", sortable: true, sortValue: (r) => r.name, accessor: (r) => r.name },
     { key: "email", header: "Email", accessor: (r) => r.email },
-    { key: "role", header: "R\u00f4le", accessor: (r) => <Badge variant="info">{roleLabels[r.role] || r.role}</Badge> },
+    { key: "role", header: "Rôle", accessor: (r) => <Badge variant="info">{roleLabels[r.role] || r.role}</Badge> },
     { key: "active", header: "Actif", accessor: (r) => (
       <span className={r.active ? "text-emerald-600" : "text-red-600"}>{r.active ? "Oui" : "Non"}</span>
     )},
-    { key: "created", header: "Cr\u00e9\u00e9 le", accessor: (r) => formatDate(r.createdAt) },
+    { key: "created", header: "Créé le", accessor: (r) => formatDate(r.createdAt) },
   ];
 
   return (
@@ -86,10 +86,10 @@ export default function UsersPage() {
           <Input label="Nom" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Mot de passe" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <Select label="R\u00f4le" options={roleOptions} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+          <Select label="Rôle" options={roleOptions} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="outline" onClick={() => setShowModal(false)}>Annuler</Button>
-            <Button onClick={handleCreate}>Cr\u00e9er</Button>
+            <Button onClick={handleCreate}>Créer</Button>
           </div>
         </div>
       </Modal>

@@ -19,7 +19,7 @@ import {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/production", label: "Production", icon: ClipboardList },
-  { href: "/downtimes", label: "Arr\u00eats", icon: AlertTriangle },
+  { href: "/downtimes", label: "Arrêts", icon: AlertTriangle },
   { href: "/analysis", label: "Analyse Pareto", icon: BarChart3 },
   { href: "/history", label: "Historique", icon: History },
   { href: "/admin", label: "Administration", icon: Settings },
@@ -113,7 +113,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
           >
             <LogOut className="h-5 w-5" />
-            D\u00e9connexion
+            Déconnexion
           </Link>
         </div>
       </aside>

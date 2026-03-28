@@ -79,40 +79,40 @@ export default function LineDashboardPage() {
           <OEEGauge value={oee.oee} />
         </Card>
         <div className="grid grid-cols-2 gap-4 lg:col-span-4">
-          <KPICard title="Disponibilit\u00e9" value={oee.availability} icon={<Clock className="h-5 w-5" />} />
+          <KPICard title="Disponibilité" value={oee.availability} icon={<Clock className="h-5 w-5" />} />
           <KPICard title="Performance" value={oee.performance} icon={<TrendingUp className="h-5 w-5" />} />
-          <KPICard title="Qualit\u00e9" value={oee.quality} greenMin={0.95} orangeMin={0.90} icon={<CheckCircle className="h-5 w-5" />} />
-          <KPICard title="Arr\u00eats" value={downtimes.length} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
+          <KPICard title="Qualité" value={oee.quality} greenMin={0.95} orangeMin={0.90} icon={<CheckCircle className="h-5 w-5" />} />
+          <KPICard title="Arrêts" value={downtimes.length} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold">\u00c9volution du TRS</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold">Évolution du TRS</h3></CardHeader>
           <CardContent><TrendLineChart data={dailyTrend} target={0.85} /></CardContent>
         </Card>
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Pareto des arr\u00eats</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold">Pareto des arrêts</h3></CardHeader>
           <CardContent><ParetoChart data={paretoData} /></CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader><h3 className="text-lg font-semibold">Derniers arr\u00eats</h3></CardHeader>
+        <CardHeader><h3 className="text-lg font-semibold">Derniers arrêts</h3></CardHeader>
         <CardContent>
           <div className="space-y-2">
             {downtimes.slice(0, 10).map((d: any) => (
               <div key={d.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded border p-2 text-sm">
                 <div>
                   <p className="font-medium">{d.downtimeType?.name || "Inconnu"}</p>
-                  <p className="text-xs text-slate-500">{d.startTime ? new Date(d.startTime).toLocaleString("fr-FR") : "\u2014"}</p>
+                  <p className="text-xs text-slate-500">{d.startTime ? new Date(d.startTime).toLocaleString("fr-FR") : "—"}</p>
                 </div>
                 <Badge variant="info">
                   {d.duration ? `${Math.round(d.duration)} min` : "En cours"}
                 </Badge>
               </div>
             ))}
-            {downtimes.length === 0 && <p className="py-4 text-center text-slate-500">Aucun arr\u00eat</p>}
+            {downtimes.length === 0 && <p className="py-4 text-center text-slate-500">Aucun arrêt</p>}
           </div>
         </CardContent>
       </Card>

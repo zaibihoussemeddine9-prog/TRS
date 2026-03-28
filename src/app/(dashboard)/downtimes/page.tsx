@@ -23,23 +23,23 @@ export default function DowntimesPage() {
   }, []);
 
   const columns: Column<any>[] = [
-    { key: "start", header: "D\u00e9but", sortable: true, sortValue: (r) => r.startTime || "", accessor: (r) => r.startTime ? formatDateTime(r.startTime) : "\u2014" },
-    { key: "lot", header: "Lot", accessor: (r) => r.batch?.lot || "\u2014" },
-    { key: "line", header: "Ligne", accessor: (r) => r.batch?.line?.code || "\u2014" },
-    { key: "type", header: "Type", accessor: (r) => r.downtimeType ? <Badge variant="info">{r.downtimeType.name}</Badge> : "\u2014" },
-    { key: "duration", header: "Dur\u00e9e (min)", sortable: true, sortValue: (r) => r.duration || 0, accessor: (r) => r.duration ? Math.round(r.duration) : "En cours" },
-    { key: "desc", header: "Description", accessor: (r) => r.description || "\u2014" },
+    { key: "start", header: "Début", sortable: true, sortValue: (r) => r.startTime || "", accessor: (r) => r.startTime ? formatDateTime(r.startTime) : "—" },
+    { key: "lot", header: "Lot", accessor: (r) => r.batch?.lot || "—" },
+    { key: "line", header: "Ligne", accessor: (r) => r.batch?.line?.code || "—" },
+    { key: "type", header: "Type", accessor: (r) => r.downtimeType ? <Badge variant="info">{r.downtimeType.name}</Badge> : "—" },
+    { key: "duration", header: "Durée (min)", sortable: true, sortValue: (r) => r.duration || 0, accessor: (r) => r.duration ? Math.round(r.duration) : "En cours" },
+    { key: "desc", header: "Description", accessor: (r) => r.description || "—" },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Suivi des Arr\u00eats</h1>
-          <p className="text-sm text-slate-500">Gestion et tra\u00e7abilit\u00e9 des arr\u00eats de ligne</p>
+          <h1 className="text-2xl font-bold text-slate-900">Suivi des Arrêts</h1>
+          <p className="text-sm text-slate-500">Gestion et traçabilité des arrêts de ligne</p>
         </div>
         <Link href="/downtimes/new">
-          <Button><Plus className="h-4 w-4" /> Nouvel arr\u00eat</Button>
+          <Button><Plus className="h-4 w-4" /> Nouvel arrêt</Button>
         </Link>
       </div>
 

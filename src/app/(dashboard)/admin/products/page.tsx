@@ -15,7 +15,7 @@ const FAMILIES = [
   { value: "Antibiotiques", label: "Antibiotiques" },
   { value: "Antalgiques", label: "Antalgiques" },
   { value: "Anti-inflammatoires", label: "Anti-inflammatoires" },
-  { value: "Gastro", label: "Gastro-ent\u00e9rologie" },
+  { value: "Gastro", label: "Gastro-entérologie" },
   { value: "Sirops", label: "Sirops" },
   { value: "Dermatologie", label: "Dermatologie" },
   { value: "Cardiovasculaire", label: "Cardiovasculaire" },
@@ -23,11 +23,11 @@ const FAMILIES = [
 ];
 
 const FORMS = [
-  { value: "Comprim\u00e9", label: "Comprim\u00e9" },
-  { value: "G\u00e9lule", label: "G\u00e9lule" },
+  { value: "Comprimé", label: "Comprimé" },
+  { value: "Gélule", label: "Gélule" },
   { value: "Sirop", label: "Sirop" },
   { value: "Pommade", label: "Pommade" },
-  { value: "Cr\u00e8me", label: "Cr\u00e8me" },
+  { value: "Crème", label: "Crème" },
   { value: "Solution", label: "Solution" },
   { value: "Injectable", label: "Injectable" },
   { value: "Autre", label: "Autre" },
@@ -100,17 +100,17 @@ export default function AdminProductsPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erreur"); return; }
-      setSuccess(editingId ? "Produit modifi\u00e9" : "Produit cr\u00e9\u00e9"); setShowModal(false); await load(); setTimeout(() => setSuccess(""), 4000);
-    } catch { setError("Erreur r\u00e9seau"); } finally { setSubmitting(false); }
+      setSuccess(editingId ? "Produit modifié" : "Produit créé"); setShowModal(false); await load(); setTimeout(() => setSuccess(""), 4000);
+    } catch { setError("Erreur réseau"); } finally { setSubmitting(false); }
   }
 
   const columns: Column<any>[] = [
     { key: "code", header: "Code", sortable: true, sortValue: (r) => r.code, accessor: (r) => <span className="font-mono font-semibold">{r.code}</span> },
     { key: "name", header: "Nom", sortable: true, sortValue: (r) => r.name, accessor: (r) => r.name },
-    { key: "family", header: "Famille", accessor: (r) => r.family || "\u2014" },
-    { key: "form", header: "Forme", accessor: (r) => r.form || "\u2014" },
-    { key: "speed", header: "Cadence", sortable: true, sortValue: (r) => r.nominalSpeed || 0, accessor: (r) => r.nominalSpeed ? `${r.nominalSpeed} u/min` : "\u2014" },
-    { key: "oee", header: "TRS cible", accessor: (r) => r.targetOEE != null ? formatPercent(r.targetOEE) : "\u2014" },
+    { key: "family", header: "Famille", accessor: (r) => r.family || "—" },
+    { key: "form", header: "Forme", accessor: (r) => r.form || "—" },
+    { key: "speed", header: "Cadence", sortable: true, sortValue: (r) => r.nominalSpeed || 0, accessor: (r) => r.nominalSpeed ? `${r.nominalSpeed} u/min` : "—" },
+    { key: "oee", header: "TRS cible", accessor: (r) => r.targetOEE != null ? formatPercent(r.targetOEE) : "—" },
     { key: "active", header: "Statut", accessor: (r) => <Badge variant={r.active ? "success" : "default"}>{r.active ? "Actif" : "Inactif"}</Badge> },
     { key: "actions", header: "", accessor: (r) => <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button> },
   ];
@@ -121,13 +121,13 @@ export default function AdminProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Produits</h1>
-        <Button onClick={openCreate}><Plus className="h-4 w-4" /> Cr\u00e9er un produit</Button>
+        <Button onClick={openCreate}><Plus className="h-4 w-4" /> Créer un produit</Button>
       </div>
       {success && <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700"><CheckCircle className="h-4 w-4" />{success}</div>}
       {loading ? <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div> : (
         <DataTable data={products} columns={columns} pageSize={15} searchable searchFn={(r, q) => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)} />
       )}
-      <Modal open={showModal} onClose={() => { if (!submitting) setShowModal(false); }} title={editingId ? "Modifier le produit" : "Cr\u00e9er un produit"}>
+      <Modal open={showModal} onClose={() => { if (!submitting) setShowModal(false); }} title={editingId ? "Modifier le produit" : "Créer un produit"}>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -135,12 +135,12 @@ export default function AdminProductsPage() {
             <Input label="Nom *" value={form.name} onChange={(e) => set("name", e.target.value)} disabled={submitting} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select label="Famille" options={FAMILIES} placeholder="S\u00e9lectionner" value={form.family} onChange={(e) => set("family", e.target.value)} disabled={submitting} />
-            <Select label="Forme" options={FORMS} placeholder="S\u00e9lectionner" value={form.form} onChange={(e) => set("form", e.target.value)} disabled={submitting} />
+            <Select label="Famille" options={FAMILIES} placeholder="Sélectionner" value={form.family} onChange={(e) => set("family", e.target.value)} disabled={submitting} />
+            <Select label="Forme" options={FORMS} placeholder="Sélectionner" value={form.form} onChange={(e) => set("form", e.target.value)} disabled={submitting} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Dosage" value={form.dosage} onChange={(e) => set("dosage", e.target.value)} disabled={submitting} />
-            <Input label="Unit\u00e9s/pack" type="number" value={form.unitsPerPack} onChange={(e) => set("unitsPerPack", e.target.value)} disabled={submitting} />
+            <Input label="Unités/pack" type="number" value={form.unitsPerPack} onChange={(e) => set("unitsPerPack", e.target.value)} disabled={submitting} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Cadence nominale (u/min)" type="number" value={form.nominalSpeed} onChange={(e) => set("nominalSpeed", e.target.value)} disabled={submitting} />
@@ -164,7 +164,7 @@ export default function AdminProductsPage() {
           </div>
           <div className="flex justify-end gap-3 border-t pt-4">
             <Button variant="outline" onClick={() => setShowModal(false)} disabled={submitting}>Annuler</Button>
-            <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Enregistrer" : "Cr\u00e9er"}</Button>
+            <Button onClick={handleSubmit} loading={submitting}>{editingId ? "Enregistrer" : "Créer"}</Button>
           </div>
         </div>
       </Modal>

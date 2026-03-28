@@ -38,7 +38,7 @@ export default function NewDowntimePage() {
 
   async function handleSubmit() {
     if (!form.batchId || !form.downtimeTypeId) {
-      setError("Lot et type d'arr\u00eat requis"); return;
+      setError("Lot et type d'arrêt requis"); return;
     }
     setSubmitting(true); setError("");
     try {
@@ -60,14 +60,14 @@ export default function NewDowntimePage() {
         const data = await res.json();
         setError(data.error || "Erreur");
       }
-    } catch { setError("Erreur r\u00e9seau"); } finally { setSubmitting(false); }
+    } catch { setError("Erreur réseau"); } finally { setSubmitting(false); }
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Nouvel arr\u00eat</h1>
-        <p className="text-sm text-slate-500">D\u00e9clarer un arr\u00eat de ligne</p>
+        <h1 className="text-2xl font-bold text-slate-900">Nouvel arrêt</h1>
+        <p className="text-sm text-slate-500">Déclarer un arrêt de ligne</p>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -76,8 +76,8 @@ export default function NewDowntimePage() {
         <CardHeader><h3 className="font-semibold">Identification</h3></CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Select label="Lot (Batch) *" options={batchOptions} placeholder="S\u00e9lectionner un lot" value={form.batchId} onChange={(e) => set("batchId", e.target.value)} />
-            <Select label="Type d'arr\u00eat *" options={causeOptions} placeholder="S\u00e9lectionner" value={form.downtimeTypeId} onChange={(e) => set("downtimeTypeId", e.target.value)} />
+            <Select label="Lot (Batch) *" options={batchOptions} placeholder="Sélectionner un lot" value={form.batchId} onChange={(e) => set("batchId", e.target.value)} />
+            <Select label="Type d'arrêt *" options={causeOptions} placeholder="Sélectionner" value={form.downtimeTypeId} onChange={(e) => set("downtimeTypeId", e.target.value)} />
           </div>
         </CardContent>
       </Card>
@@ -86,15 +86,15 @@ export default function NewDowntimePage() {
         <CardHeader><h3 className="font-semibold">Temps</h3></CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Input label="D\u00e9but" type="datetime-local" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} />
+            <Input label="Début" type="datetime-local" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} />
             <Input label="Fin" type="datetime-local" value={form.endTime} onChange={(e) => set("endTime", e.target.value)} />
-            <Input label="Dur\u00e9e (min)" type="number" step="0.1" value={form.duration} onChange={(e) => set("duration", e.target.value)} />
+            <Input label="Durée (min)" type="number" step="0.1" value={form.duration} onChange={(e) => set("duration", e.target.value)} />
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><h3 className="font-semibold">D\u00e9tails</h3></CardHeader>
+        <CardHeader><h3 className="font-semibold">Détails</h3></CardHeader>
         <CardContent>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
