@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { ParetoChart } from "@/components/charts/pareto-chart";
-import { DowntimePieChart } from "@/components/charts/downtime-pie-chart";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -35,37 +34,18 @@ export default function AnalysisPage() {
     load();
   }, [filterLine, filterFrom, filterTo]);
 
-  // By cause
+  // By cause (downtimeType.name)
   const causeMap = new Map<string, number>();
   downtimes.forEach((d: any) => {
-    const name = d.cause?.name || "Inconnu";
+    const name = d.downtimeType?.name || "Inconnu";
     causeMap.set(name, (causeMap.get(name) || 0) + (d.duration || 0));
   });
   const causeParetoData = Array.from(causeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
 
-  // By responsibility
-  const respMap = new Map<string, number>();
-  const respLabels: Record<string, string> = {
-    PRODUCTION: "Production", MAINTENANCE: "Maintenance", QUALITE: "Qualité", LOGISTIQUE: "Logistique", AUTRE: "Autre",
-  };
-  downtimes.forEach((d: any) => {
-    const name = respLabels[d.responsibility] || d.responsibility;
-    respMap.set(name, (respMap.get(name) || 0) + (d.duration || 0));
-  });
-  const respPieData = Array.from(respMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
-
-  // By type
-  const typeMap = new Map<string, number>();
-  downtimes.forEach((d: any) => {
-    const name = d.type === "PLANNED" ? "Planifié" : "Non planifié";
-    typeMap.set(name, (typeMap.get(name) || 0) + (d.duration || 0));
-  });
-  const typePieData = Array.from(typeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
-
-  // By line
+  // By line (batch.line.code)
   const lineMap = new Map<string, number>();
   downtimes.forEach((d: any) => {
-    const name = d.line?.code || d.line?.name || "N/A";
+    const name = d.batch?.line?.code || "N/A";
     lineMap.set(name, (lineMap.get(name) || 0) + (d.duration || 0));
   });
   const lineParetoData = Array.from(lineMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
@@ -76,7 +56,7 @@ export default function AnalysisPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Analyse Pareto</h1>
-        <p className="text-sm text-slate-500">Analyse des causes de pertes et arrêts</p>
+        <p className="text-sm text-slate-500">Analyse des causes de pertes et arr\u00eats</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
@@ -86,7 +66,7 @@ export default function AnalysisPage() {
         <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full sm:w-40" />
         <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full sm:w-40" />
         <div className="flex items-center rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-          Total : {Math.round(totalDowntime)} min ({downtimes.length} arrêts)
+          Total : {Math.round(totalDowntime)} min ({downtimes.length} arr\u00eats)
         </div>
       </div>
 
@@ -103,14 +83,6 @@ export default function AnalysisPage() {
           <Card>
             <CardHeader><h3 className="text-lg font-semibold">Pareto par ligne</h3></CardHeader>
             <CardContent><ParetoChart data={lineParetoData} /></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><h3 className="text-lg font-semibold">Répartition par responsabilité</h3></CardHeader>
-            <CardContent><DowntimePieChart data={respPieData} /></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><h3 className="text-lg font-semibold">Répartition par type</h3></CardHeader>
-            <CardContent><DowntimePieChart data={typePieData} /></CardContent>
           </Card>
         </div>
       )}

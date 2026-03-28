@@ -8,7 +8,7 @@ import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { ParetoChart } from "@/components/charts/pareto-chart";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { calcAggregateOEE, formatPercent, formatMinutesToHM } from "@/lib/trs-calculations";
+import { calcAggregateOEE, formatPercent } from "@/lib/trs-calculations";
 import { Clock, TrendingUp, CheckCircle, AlertTriangle } from "lucide-react";
 
 export default function LineDashboardPage() {
@@ -62,20 +62,10 @@ export default function LineDashboardPage() {
   // Downtime pareto
   const causeMap = new Map<string, number>();
   downtimes.forEach((d: any) => {
-    const name = d.cause?.name || "Inconnu";
+    const name = d.downtimeType?.name || "Inconnu";
     causeMap.set(name, (causeMap.get(name) || 0) + (d.duration || 0));
   });
   const paretoData = Array.from(causeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
-
-  // Shift analysis
-  const shiftMap = new Map<string, any[]>();
-  entries.forEach((e: any) => {
-    const key = e.shift?.name || "N/A";
-    if (!shiftMap.has(key)) shiftMap.set(key, []);
-    shiftMap.get(key)!.push(e);
-  });
-
-  const totalDowntime = downtimes.reduce((sum: number, d: any) => sum + (d.duration || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -89,68 +79,43 @@ export default function LineDashboardPage() {
           <OEEGauge value={oee.oee} />
         </Card>
         <div className="grid grid-cols-2 gap-4 lg:col-span-4">
-          <KPICard title="Disponibilité" value={oee.availability} icon={<Clock className="h-5 w-5" />} />
+          <KPICard title="Disponibilit\u00e9" value={oee.availability} icon={<Clock className="h-5 w-5" />} />
           <KPICard title="Performance" value={oee.performance} icon={<TrendingUp className="h-5 w-5" />} />
-          <KPICard title="Qualité" value={oee.quality} greenMin={0.95} orangeMin={0.90} icon={<CheckCircle className="h-5 w-5" />} />
-          <KPICard title="Arrêts" value={downtimes.length} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
+          <KPICard title="Qualit\u00e9" value={oee.quality} greenMin={0.95} orangeMin={0.90} icon={<CheckCircle className="h-5 w-5" />} />
+          <KPICard title="Arr\u00eats" value={downtimes.length} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Évolution du TRS</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold">\u00c9volution du TRS</h3></CardHeader>
           <CardContent><TrendLineChart data={dailyTrend} target={0.85} /></CardContent>
         </Card>
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Pareto des arrêts</h3></CardHeader>
+          <CardHeader><h3 className="text-lg font-semibold">Pareto des arr\u00eats</h3></CardHeader>
           <CardContent><ParetoChart data={paretoData} /></CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Analyse par shift</h3></CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Array.from(shiftMap.entries()).map(([shift, shiftEntries]) => {
-                const shiftOee = calcAggregateOEE(shiftEntries);
-                return (
-                  <div key={shift} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3">
-                    <span className="font-medium">{shift}</span>
-                    <div className="flex flex-wrap gap-2 sm:gap-3 text-sm">
-                      <span>D: {formatPercent(shiftOee.availability)}</span>
-                      <span>P: {formatPercent(shiftOee.performance)}</span>
-                      <span>Q: {formatPercent(shiftOee.quality)}</span>
-                      <Badge variant={shiftOee.oee >= 0.85 ? "success" : shiftOee.oee >= 0.65 ? "warning" : "danger"}>
-                        {formatPercent(shiftOee.oee)}
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Derniers arrêts</h3></CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {downtimes.slice(0, 8).map((d: any) => (
-                <div key={d.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded border p-2 text-sm">
-                  <div>
-                    <p className="font-medium">{d.cause?.name}</p>
-                    <p className="text-xs text-slate-500">{new Date(d.startTime).toLocaleString("fr-FR")}</p>
-                  </div>
-                  <Badge variant={d.type === "PLANNED" ? "info" : "danger"}>
-                    {d.duration ? `${Math.round(d.duration)} min` : "En cours"}
-                  </Badge>
+      <Card>
+        <CardHeader><h3 className="text-lg font-semibold">Derniers arr\u00eats</h3></CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {downtimes.slice(0, 10).map((d: any) => (
+              <div key={d.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded border p-2 text-sm">
+                <div>
+                  <p className="font-medium">{d.downtimeType?.name || "Inconnu"}</p>
+                  <p className="text-xs text-slate-500">{d.startTime ? new Date(d.startTime).toLocaleString("fr-FR") : "\u2014"}</p>
                 </div>
-              ))}
-              {downtimes.length === 0 && <p className="py-4 text-center text-slate-500">Aucun arrêt</p>}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <Badge variant="info">
+                  {d.duration ? `${Math.round(d.duration)} min` : "En cours"}
+                </Badge>
+              </div>
+            ))}
+            {downtimes.length === 0 && <p className="py-4 text-center text-slate-500">Aucun arr\u00eat</p>}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

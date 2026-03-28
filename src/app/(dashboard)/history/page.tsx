@@ -19,7 +19,6 @@ export default function HistoryPage() {
   const [filterProduct, setFilterProduct] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
-  const [view, setView] = useState<"daily" | "weekly" | "monthly">("daily");
 
   useEffect(() => {
     Promise.all([
@@ -47,14 +46,15 @@ export default function HistoryPage() {
   }, [filterLine, filterProduct, filterFrom, filterTo]);
 
   function exportCSV() {
-    const headers = ["Date", "Ligne", "Shift", "Produit", "Lot", "Qté Produite", "Qté Conforme", "Rejet", "Dispo", "Perf", "Qualité", "TRS"];
+    const headers = ["Date", "Ligne", "Produit", "Lot", "Shift", "Qt\u00e9 Produite", "Qt\u00e9 Conforme", "Rejet", "Dispo", "Perf", "Qualit\u00e9", "TRS", "Statut"];
     const rows = entries.map((e: any) => [
-      formatDate(e.date), e.line?.name, e.shift?.name, e.product?.name, e.lot,
+      formatDate(e.date), e.line?.code, e.product?.name, e.lot, e.shift || "",
       e.quantityProduced, e.quantityConform, e.quantityRejected,
       e.availability != null ? (e.availability * 100).toFixed(1) + "%" : "",
       e.performance != null ? (e.performance * 100).toFixed(1) + "%" : "",
       e.quality != null ? (e.quality * 100).toFixed(1) + "%" : "",
       e.oee != null ? (e.oee * 100).toFixed(1) + "%" : "",
+      e.status || "",
     ]);
     const csv = [headers, ...rows].map((r) => r.join(";")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
@@ -69,18 +69,18 @@ export default function HistoryPage() {
   const columns: Column<any>[] = [
     { key: "date", header: "Date", sortable: true, sortValue: (r) => r.date, accessor: (r) => formatDate(r.date) },
     { key: "line", header: "Ligne", sortable: true, sortValue: (r) => r.line?.name || "", accessor: (r) => r.line?.code },
-    { key: "shift", header: "Shift", accessor: (r) => r.shift?.name },
     { key: "product", header: "Produit", accessor: (r) => r.product?.name },
     { key: "lot", header: "Lot", accessor: (r) => r.lot },
-    { key: "qty", header: "Qté", sortable: true, sortValue: (r) => r.quantityProduced, accessor: (r) => r.quantityProduced?.toLocaleString("fr-FR") },
+    { key: "shift", header: "Shift", accessor: (r) => r.shift || "\u2014" },
+    { key: "qty", header: "Qt\u00e9", sortable: true, sortValue: (r) => r.quantityProduced, accessor: (r) => r.quantityProduced?.toLocaleString("fr-FR") },
     { key: "reject", header: "Rejet", accessor: (r) => r.quantityRejected },
-    { key: "dispo", header: "Dispo", sortable: true, sortValue: (r) => r.availability || 0, accessor: (r) => r.availability != null ? formatPercent(r.availability) : "—" },
-    { key: "perf", header: "Perf", sortable: true, sortValue: (r) => r.performance || 0, accessor: (r) => r.performance != null ? formatPercent(r.performance) : "—" },
-    { key: "qual", header: "Qualité", sortable: true, sortValue: (r) => r.quality || 0, accessor: (r) => r.quality != null ? formatPercent(r.quality) : "—" },
+    { key: "dispo", header: "Dispo", sortable: true, sortValue: (r) => r.availability || 0, accessor: (r) => r.availability != null ? formatPercent(r.availability) : "\u2014" },
+    { key: "perf", header: "Perf", sortable: true, sortValue: (r) => r.performance || 0, accessor: (r) => r.performance != null ? formatPercent(r.performance) : "\u2014" },
+    { key: "qual", header: "Qualit\u00e9", sortable: true, sortValue: (r) => r.quality || 0, accessor: (r) => r.quality != null ? formatPercent(r.quality) : "\u2014" },
     {
       key: "oee", header: "TRS", sortable: true, sortValue: (r) => r.oee || 0,
       accessor: (r) => {
-        if (r.oee == null) return "—";
+        if (r.oee == null) return "\u2014";
         const v = r.oee >= 0.85 ? "success" : r.oee >= 0.65 ? "warning" : "danger";
         return <Badge variant={v}>{formatPercent(r.oee)}</Badge>;
       },
@@ -93,7 +93,7 @@ export default function HistoryPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Historique & Reporting</h1>
-          <p className="text-sm text-slate-500">Consultation détaillée des données de production</p>
+          <p className="text-sm text-slate-500">Consultation d\u00e9taill\u00e9e des donn\u00e9es de production</p>
         </div>
         <Button variant="outline" onClick={exportCSV}>
           <FileDown className="h-4 w-4" /> Export CSV

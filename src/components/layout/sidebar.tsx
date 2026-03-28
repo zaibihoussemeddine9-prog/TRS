@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   BarChart3,
   History,
-  Target,
   Settings,
   Factory,
   LogOut,
@@ -20,10 +19,9 @@ import {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/production", label: "Production", icon: ClipboardList },
-  { href: "/downtimes", label: "Arrêts", icon: AlertTriangle },
+  { href: "/downtimes", label: "Arr\u00eats", icon: AlertTriangle },
   { href: "/analysis", label: "Analyse Pareto", icon: BarChart3 },
   { href: "/history", label: "Historique", icon: History },
-  { href: "/actions", label: "Plans d'actions", icon: Target },
   { href: "/admin", label: "Administration", icon: Settings },
 ];
 
@@ -67,9 +65,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <aside
         className={cn(
           "fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out",
-          // Desktop: always visible
           "lg:translate-x-0",
-          // Mobile: slide in/out
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -81,7 +77,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <p className="text-[10px] text-slate-500 uppercase tracking-wider">Suivi OEE</p>
             </div>
           </div>
-          {/* Close button - mobile only */}
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden"
@@ -118,7 +113,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
           >
             <LogOut className="h-5 w-5" />
-            Déconnexion
+            D\u00e9connexion
           </Link>
         </div>
       </aside>

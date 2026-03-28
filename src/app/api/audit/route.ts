@@ -11,12 +11,16 @@ export async function GET(req: NextRequest) {
   if (entity) where.entity = entity;
   if (entityId) where.entityId = entityId;
 
-  const logs = await prisma.auditLog.findMany({
-    where,
-    include: { user: { select: { name: true } } },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-
-  return NextResponse.json(logs);
+  try {
+    const logs = await prisma.auditLog.findMany({
+      where,
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    return NextResponse.json(logs);
+  } catch (err) {
+    console.error("[GET /api/audit]", err);
+    return NextResponse.json({ error: "Erreur" }, { status: 500 });
+  }
 }

@@ -9,31 +9,10 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { formatPercent } from "@/lib/trs-calculations";
 import { formatDate } from "@/lib/utils";
-import { Plus, FileDown } from "lucide-react";
-
-interface ProductionEntry {
-  id: string;
-  date: string;
-  lot: string;
-  orderNumber: string | null;
-  quantityProduced: number;
-  quantityConform: number;
-  quantityRejected: number;
-  oee: number | null;
-  availability: number | null;
-  performance: number | null;
-  quality: number | null;
-  status: string;
-  line: { name: string; code: string };
-  shift: { name: string };
-  team: { name: string } | null;
-  product: { name: string };
-  format: { name: string };
-  createdBy: { name: string };
-}
+import { Plus } from "lucide-react";
 
 export default function ProductionPage() {
-  const [entries, setEntries] = useState<ProductionEntry[]>([]);
+  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lines, setLines] = useState<{ value: string; label: string }[]>([]);
   const [filterLine, setFilterLine] = useState("");
@@ -70,8 +49,8 @@ export default function ProductionPage() {
     const labels: Record<string, string> = {
       DRAFT: "Brouillon",
       SUBMITTED: "Soumis",
-      VALIDATED: "Validé",
-      REJECTED: "Rejeté",
+      VALIDATED: "Valid\u00e9",
+      REJECTED: "Rejet\u00e9",
     };
     return <Badge variant={map[status] || "default"}>{labels[status] || status}</Badge>;
   };
@@ -83,30 +62,18 @@ export default function ProductionPage() {
     return "text-red-600 font-semibold";
   };
 
-  const columns: Column<ProductionEntry>[] = [
+  const columns: Column<any>[] = [
     { key: "date", header: "Date", sortable: true, sortValue: (r) => r.date, accessor: (r) => formatDate(r.date) },
-    { key: "line", header: "Ligne", sortable: true, sortValue: (r) => r.line.name, accessor: (r) => r.line.code },
-    { key: "shift", header: "Shift", accessor: (r) => r.shift.name },
-    { key: "product", header: "Produit", accessor: (r) => r.product.name },
+    { key: "line", header: "Ligne", sortable: true, sortValue: (r) => r.line?.name || "", accessor: (r) => r.line?.code },
+    { key: "product", header: "Produit", accessor: (r) => r.product?.name },
     { key: "lot", header: "Lot", accessor: (r) => r.lot },
-    { key: "qty", header: "Qté prod.", sortable: true, sortValue: (r) => r.quantityProduced, accessor: (r) => r.quantityProduced.toLocaleString("fr-FR") },
+    { key: "shift", header: "Shift", accessor: (r) => r.shift || "\u2014" },
+    { key: "qty", header: "Qt\u00e9 prod.", sortable: true, sortValue: (r) => r.quantityProduced, accessor: (r) => r.quantityProduced?.toLocaleString("fr-FR") },
     {
-      key: "oee",
-      header: "TRS",
-      sortable: true,
-      sortValue: (r) => r.oee || 0,
-      accessor: (r) => <span className={oeeColor(r.oee)}>{r.oee != null ? formatPercent(r.oee) : "—"}</span>,
+      key: "oee", header: "TRS", sortable: true, sortValue: (r) => r.oee || 0,
+      accessor: (r) => <span className={oeeColor(r.oee)}>{r.oee != null ? formatPercent(r.oee) : "\u2014"}</span>,
     },
     { key: "status", header: "Statut", accessor: (r) => statusBadge(r.status) },
-    {
-      key: "actions",
-      header: "",
-      accessor: (r) => (
-        <Link href={`/production/${r.id}`} className="text-sm text-blue-600 hover:underline">
-          Détails
-        </Link>
-      ),
-    },
   ];
 
   return (
@@ -114,7 +81,7 @@ export default function ProductionPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Saisie Production</h1>
-          <p className="text-sm text-slate-500">Gestion des données de production</p>
+          <p className="text-sm text-slate-500">Gestion des donn\u00e9es de production</p>
         </div>
         <Link href="/production/new">
           <Button><Plus className="h-4 w-4" /> Nouvelle saisie</Button>
@@ -140,9 +107,9 @@ export default function ProductionPage() {
           pageSize={15}
           searchable
           searchFn={(row, q) =>
-            row.lot.toLowerCase().includes(q) ||
-            row.product.name.toLowerCase().includes(q) ||
-            row.line.name.toLowerCase().includes(q)
+            (row.lot || "").toLowerCase().includes(q) ||
+            (row.product?.name || "").toLowerCase().includes(q) ||
+            (row.line?.name || "").toLowerCase().includes(q)
           }
         />
       )}

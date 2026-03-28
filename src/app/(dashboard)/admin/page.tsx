@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Boxes, Package, AlertTriangle, Settings, Factory } from "lucide-react";
+import { Users, Package, AlertTriangle, Factory } from "lucide-react";
 
 const adminItems = [
-  { href: "/admin/users", label: "Utilisateurs", description: "Gestion des comptes et rôles", icon: Users },
+  { href: "/admin/users", label: "Utilisateurs", description: "Gestion des comptes et r\u00f4les", icon: Users },
   { href: "/admin/lines", label: "Lignes", description: "Lignes de conditionnement", icon: Factory },
-  { href: "/admin/products", label: "Produits & Formats", description: "Référentiel produits", icon: Package },
-  { href: "/admin/causes", label: "Causes d'arrêt", description: "Référentiel des causes", icon: AlertTriangle },
-  { href: "/admin/settings", label: "Paramètres KPI", description: "Seuils et objectifs", icon: Settings },
+  { href: "/admin/products", label: "Produits", description: "R\u00e9f\u00e9rentiel produits", icon: Package },
+  { href: "/admin/causes", label: "Types d'arr\u00eat", description: "R\u00e9f\u00e9rentiel des types d'arr\u00eat", icon: AlertTriangle },
 ];
 
 export default function AdminPage() {
@@ -17,7 +16,7 @@ export default function AdminPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Administration</h1>
-        <p className="text-sm text-slate-500">Gestion des référentiels et paramètres</p>
+        <p className="text-sm text-slate-500">Gestion des r\u00e9f\u00e9rentiels et param\u00e8tres</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

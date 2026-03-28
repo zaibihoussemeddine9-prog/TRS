@@ -12,17 +12,13 @@ export function Header({ onMenuToggle }: HeaderProps) {
 
   const roleLabels: Record<string, string> = {
     ADMIN: "Administrateur",
-    DIRECTION: "Direction industrielle",
-    RESP_PRODUCTION: "Resp. Production",
-    RESP_MAINTENANCE: "Resp. Maintenance",
-    RESP_QUALITE: "Resp. Qualité",
-    SUPERVISEUR: "Superviseur",
+    RESPONSABLE: "Responsable",
+    OPERATEUR: "Op\u00e9rateur",
     LECTURE_SEULE: "Lecture seule",
   };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
-      {/* Left: hamburger on mobile, empty on desktop */}
       <button
         onClick={onMenuToggle}
         className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 lg:hidden"
@@ -32,7 +28,6 @@ export function Header({ onMenuToggle }: HeaderProps) {
       </button>
       <div className="hidden lg:block" />
 
-      {/* Right: notifications + user */}
       <div className="flex items-center gap-2 sm:gap-4">
         <button className="relative rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
           <Bell className="h-5 w-5" />

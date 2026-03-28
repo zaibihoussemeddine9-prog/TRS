@@ -10,12 +10,10 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import {
-  Activity,
   AlertTriangle,
   CheckCircle,
   Clock,
   Package,
-  Target,
   TrendingUp,
   XCircle,
 } from "lucide-react";
@@ -32,7 +30,6 @@ interface DashboardData {
   rejectRate: number;
   downtimeCount: number;
   entryCount: number;
-  activeActions: number;
 }
 
 export default function DashboardPage() {
@@ -73,7 +70,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard Global</h1>
-          <p className="text-sm text-slate-500">Vue d'ensemble de la performance des lignes</p>
+          <p className="text-sm text-slate-500">Vue d&apos;ensemble de la performance des lignes</p>
         </div>
         <div className="w-full sm:w-48">
           <Select
@@ -90,9 +87,9 @@ export default function DashboardPage() {
           <OEEGauge value={data.global.oee} />
         </Card>
         <div className="grid grid-cols-2 gap-4 lg:col-span-4">
-          <KPICard title="Disponibilité" value={data.global.availability} icon={<Clock className="h-5 w-5" />} />
+          <KPICard title="Disponibilit\u00e9" value={data.global.availability} icon={<Clock className="h-5 w-5" />} />
           <KPICard title="Performance" value={data.global.performance} icon={<TrendingUp className="h-5 w-5" />} />
-          <KPICard title="Qualité" value={data.global.quality} greenMin={0.95} orangeMin={0.90} icon={<CheckCircle className="h-5 w-5" />} />
+          <KPICard title="Qualit\u00e9" value={data.global.quality} greenMin={0.95} orangeMin={0.90} icon={<CheckCircle className="h-5 w-5" />} />
           <KPICard
             title="Taux de rejet"
             value={data.rejectRate}
@@ -105,17 +102,17 @@ export default function DashboardPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KPICard title="Arrêts" value={data.downtimeCount} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
-        <KPICard title="Temps d'arrêt total" value={Math.round(data.totalDowntime)} isPercent={false} unit="min" icon={<Clock className="h-5 w-5" />} />
-        <KPICard title="Quantité produite" value={Math.round(data.totalProduced)} isPercent={false} unit="u" icon={<Package className="h-5 w-5" />} />
-        <KPICard title="Actions en cours" value={data.activeActions} isPercent={false} icon={<Target className="h-5 w-5" />} />
+        <KPICard title="Arr\u00eats" value={data.downtimeCount} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
+        <KPICard title="Temps d'arr\u00eat total" value={Math.round(data.totalDowntime)} isPercent={false} unit="min" icon={<Clock className="h-5 w-5" />} />
+        <KPICard title="Quantit\u00e9 produite" value={Math.round(data.totalProduced)} isPercent={false} unit="u" icon={<Package className="h-5 w-5" />} />
+        <KPICard title="Saisies" value={data.entryCount} isPercent={false} icon={<CheckCircle className="h-5 w-5" />} />
       </div>
 
       {/* Trend + Bar chart */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-semibold text-slate-900">Évolution du TRS</h3>
+            <h3 className="text-lg font-semibold text-slate-900">\u00c9volution du TRS</h3>
           </CardHeader>
           <CardContent>
             <TrendLineChart data={data.dailyTrend} target={0.85} />
@@ -143,7 +140,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-semibold text-slate-900">Répartition des arrêts</h3>
+            <h3 className="text-lg font-semibold text-slate-900">R\u00e9partition des arr\u00eats</h3>
           </CardHeader>
           <CardContent>
             <DowntimePieChart
@@ -164,7 +161,7 @@ export default function DashboardPage() {
                 <div key={line.lineId} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-slate-100 p-3">
                   <div>
                     <p className="font-medium text-slate-900">{line.lineName}</p>
-                    <p className="text-xs text-slate-500">{line.entryCount} entrées</p>
+                    <p className="text-xs text-slate-500">{line.entryCount} entr\u00e9es</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
                     <div className="text-center">
@@ -188,7 +185,7 @@ export default function DashboardPage() {
                 </div>
               ))}
               {data.lineKPIs.length === 0 && (
-                <p className="py-8 text-center text-sm text-slate-500">Aucune donnée pour cette période</p>
+                <p className="py-8 text-center text-sm text-slate-500">Aucune donn\u00e9e pour cette p\u00e9riode</p>
               )}
             </div>
           </CardContent>

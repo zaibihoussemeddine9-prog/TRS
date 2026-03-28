@@ -6,12 +6,7 @@ import { UserRole } from "@prisma/client";
 
 declare module "next-auth" {
   interface Session {
-    user: {
-      id: string;
-      email: string;
-      name: string;
-      role: UserRole;
-    };
+    user: { id: string; email: string; name: string; role: UserRole };
   }
   interface User {
     id: string;
@@ -36,16 +31,10 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
-
+        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
         if (!user || !user.active) return null;
-
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
-
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
@@ -53,10 +42,7 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-      }
+      if (user) { token.id = user.id; token.role = user.role; }
       return token;
     },
     async session({ session, token }) {
@@ -65,39 +51,19 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  pages: {
-    signIn: "/login",
-  },
-};
-
-// Role-based access control
-const MODULE_PERMISSIONS: Record<string, UserRole[]> = {
-  dashboard: [
-    "ADMIN", "DIRECTION", "RESP_PRODUCTION", "RESP_MAINTENANCE",
-    "RESP_QUALITE", "SUPERVISEUR", "LECTURE_SEULE",
-  ],
-  production: [
-    "ADMIN", "RESP_PRODUCTION", "SUPERVISEUR",
-  ],
-  downtimes: [
-    "ADMIN", "RESP_PRODUCTION", "RESP_MAINTENANCE", "SUPERVISEUR",
-  ],
-  actions: [
-    "ADMIN", "DIRECTION", "RESP_PRODUCTION", "RESP_MAINTENANCE", "RESP_QUALITE",
-  ],
-  analysis: [
-    "ADMIN", "DIRECTION", "RESP_PRODUCTION", "RESP_MAINTENANCE",
-    "RESP_QUALITE", "SUPERVISEUR", "LECTURE_SEULE",
-  ],
-  admin: ["ADMIN"],
+  pages: { signIn: "/login" },
 };
 
 export function hasAccess(role: UserRole, module: string): boolean {
-  const allowed = MODULE_PERMISSIONS[module];
-  if (!allowed) return false;
-  return allowed.includes(role);
+  const perms: Record<string, UserRole[]> = {
+    dashboard: ["ADMIN", "RESPONSABLE", "OPERATEUR", "LECTURE_SEULE"],
+    production: ["ADMIN", "RESPONSABLE", "OPERATEUR"],
+    downtimes: ["ADMIN", "RESPONSABLE", "OPERATEUR"],
+    admin: ["ADMIN"],
+  };
+  return (perms[module] || []).includes(role);
 }
 
 export function canEdit(role: UserRole): boolean {
-  return !["LECTURE_SEULE", "DIRECTION"].includes(role);
+  return role !== "LECTURE_SEULE";
 }

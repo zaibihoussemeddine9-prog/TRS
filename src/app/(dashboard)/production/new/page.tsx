@@ -3,99 +3,100 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { productionEntrySchema, ProductionEntryInput } from "@/lib/validations";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { calcOEE, formatPercent } from "@/lib/trs-calculations";
+import { formatPercent } from "@/lib/trs-calculations";
+
+const SHIFTS = [
+  { value: "Matin", label: "Matin" },
+  { value: "Apr\u00e8s-midi", label: "Apr\u00e8s-midi" },
+  { value: "Nuit", label: "Nuit" },
+];
 
 export default function NewProductionPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [lines, setLines] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [shifts, setShifts] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<ProductionEntryInput>({
-    resolver: zodResolver(productionEntrySchema),
-    defaultValues: {
-      plannedDowntime: 0, unplannedDowntime: 0, formatChangeTime: 0,
-      adjustmentTime: 0, cleaningTime: 0, qualityWaitTime: 0,
-      maintenanceWaitTime: 0, materialWaitTime: 0, microStopTime: 0,
-      quantityRejected: 0, status: "DRAFT",
-    },
+  const [form, setForm] = useState({
+    date: "", lineId: "", productId: "", lot: "", shift: "", orderNumber: "",
+    plannedTime: "", actualRunningTime: "", theoreticalSpeed: "", actualSpeed: "",
+    quantityProduced: "", quantityConform: "", quantityRejected: "", comment: "",
   });
 
   useEffect(() => {
     Promise.all([
       fetch("/api/lines").then((r) => r.json()),
       fetch("/api/products").then((r) => r.json()),
-      fetch("/api/shifts").then((r) => r.json()),
-      fetch("/api/teams").then((r) => r.json()),
-    ]).then(([l, p, s, t]) => {
-      setLines(l);
-      setProducts(p);
-      setShifts(s);
-      setTeams(t);
-    });
+    ]).then(([l, p]) => { setLines(l); setProducts(p); });
   }, []);
 
-  const watched = watch();
-  const selectedProduct = products.find((p: any) => p.id === watched.productId);
-  const formats = selectedProduct?.formats || [];
+  const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  const previewOEE = calcOEE({
-    plannedTime: Number(watched.plannedTime) || 0,
-    plannedUsefulTime: Number(watched.plannedUsefulTime) || 0,
-    actualRunningTime: Number(watched.actualRunningTime) || 0,
-    plannedDowntime: Number(watched.plannedDowntime) || 0,
-    unplannedDowntime: Number(watched.unplannedDowntime) || 0,
-    formatChangeTime: Number(watched.formatChangeTime) || 0,
-    adjustmentTime: Number(watched.adjustmentTime) || 0,
-    cleaningTime: Number(watched.cleaningTime) || 0,
-    qualityWaitTime: Number(watched.qualityWaitTime) || 0,
-    maintenanceWaitTime: Number(watched.maintenanceWaitTime) || 0,
-    materialWaitTime: Number(watched.materialWaitTime) || 0,
-    microStopTime: Number(watched.microStopTime) || 0,
-    theoreticalSpeed: Number(watched.theoreticalSpeed) || 0,
-    actualSpeed: Number(watched.actualSpeed) || 0,
-    quantityProduced: Number(watched.quantityProduced) || 0,
-    quantityConform: Number(watched.quantityConform) || 0,
-    quantityRejected: Number(watched.quantityRejected) || 0,
-  });
+  // Live OEE preview
+  const planned = Number(form.plannedTime) || 0;
+  const running = Number(form.actualRunningTime) || 0;
+  const thSpeed = Number(form.theoreticalSpeed) || 0;
+  const produced = Number(form.quantityProduced) || 0;
+  const conform = Number(form.quantityConform) || 0;
 
-  async function onSubmit(data: ProductionEntryInput) {
-    setSubmitting(true);
-    const res = await fetch("/api/production", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, userId: session?.user?.id }),
-    });
-    if (res.ok) {
-      router.push("/production");
+  const availability = planned > 0 ? running / planned : 0;
+  const performance = running > 0 && thSpeed > 0 ? produced / (running * thSpeed) : 0;
+  const quality = produced > 0 ? conform / produced : 0;
+  const oee = availability * performance * quality;
+
+  async function handleSubmit() {
+    if (!form.date || !form.lineId || !form.productId || !form.lot.trim()) {
+      setError("Date, ligne, produit et lot sont requis"); return;
     }
-    setSubmitting(false);
+    setSubmitting(true); setError("");
+    try {
+      const payload = {
+        date: form.date, lineId: form.lineId, productId: form.productId,
+        lot: form.lot.trim(), shift: form.shift || null, orderNumber: form.orderNumber || null,
+        plannedTime: form.plannedTime ? Number(form.plannedTime) : null,
+        actualRunningTime: form.actualRunningTime ? Number(form.actualRunningTime) : null,
+        theoreticalSpeed: form.theoreticalSpeed ? Number(form.theoreticalSpeed) : null,
+        actualSpeed: form.actualSpeed ? Number(form.actualSpeed) : null,
+        quantityProduced: form.quantityProduced ? Number(form.quantityProduced) : null,
+        quantityConform: form.quantityConform ? Number(form.quantityConform) : null,
+        quantityRejected: form.quantityRejected ? Number(form.quantityRejected) : null,
+        comment: form.comment || null,
+        userId: session?.user?.id,
+      };
+      const res = await fetch("/api/production", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) { router.push("/production"); } else {
+        const data = await res.json();
+        setError(data.error || "Erreur");
+      }
+    } catch { setError("Erreur r\u00e9seau"); } finally { setSubmitting(false); }
   }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Nouvelle saisie production</h1>
-        <p className="text-sm text-slate-500">Remplissez les données de production du shift</p>
+        <p className="text-sm text-slate-500">Remplissez les donn\u00e9es de production du shift</p>
       </div>
+
+      {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {/* Live OEE preview */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Disponibilité", value: previewOEE.availability },
-          { label: "Performance", value: previewOEE.performance },
-          { label: "Qualité", value: previewOEE.quality },
-          { label: "TRS", value: previewOEE.oee },
+          { label: "Disponibilit\u00e9", value: availability },
+          { label: "Performance", value: performance },
+          { label: "Qualit\u00e9", value: quality },
+          { label: "TRS", value: oee },
         ].map((kpi) => (
           <div key={kpi.label} className="rounded-lg border bg-white p-3 text-center">
             <p className="text-xs text-slate-500">{kpi.label}</p>
@@ -104,73 +105,60 @@ export default function NewProductionPage() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader><h3 className="font-semibold">Identification</h3></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Input id="date" type="date" label="Date" error={errors.date?.message} {...register("date")} />
-              <Select id="lineId" label="Ligne" options={lines.map((l: any) => ({ value: l.id, label: l.name }))} placeholder="Sélectionner" error={errors.lineId?.message} {...register("lineId")} />
-              <Select id="shiftId" label="Shift" options={shifts.map((s: any) => ({ value: s.id, label: s.name }))} placeholder="Sélectionner" error={errors.shiftId?.message} {...register("shiftId")} />
-              <Select id="teamId" label="Équipe" options={teams.map((t: any) => ({ value: t.id, label: t.name }))} placeholder="Sélectionner (optionnel)" {...register("teamId")} />
-              <Select id="productId" label="Produit" options={products.map((p: any) => ({ value: p.id, label: p.name }))} placeholder="Sélectionner" error={errors.productId?.message} {...register("productId")} />
-              <Select id="formatId" label="Format" options={formats.map((f: any) => ({ value: f.id, label: f.name }))} placeholder="Sélectionner" error={errors.formatId?.message} {...register("formatId")} />
-              <Input id="lot" label="N° Lot" error={errors.lot?.message} {...register("lot")} />
-              <Input id="orderNumber" label="N° OF / OC" {...register("orderNumber")} />
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><h3 className="font-semibold">Identification</h3></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input label="Date *" type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
+            <Select label="Ligne *" options={lines.map((l) => ({ value: l.id, label: l.name }))} placeholder="S\u00e9lectionner" value={form.lineId} onChange={(e) => set("lineId", e.target.value)} />
+            <Select label="Produit *" options={products.map((p) => ({ value: p.id, label: p.name }))} placeholder="S\u00e9lectionner" value={form.productId} onChange={(e) => set("productId", e.target.value)} />
+            <Input label="N\u00b0 Lot *" value={form.lot} onChange={(e) => set("lot", e.target.value)} />
+            <Select label="Shift" options={SHIFTS} placeholder="S\u00e9lectionner" value={form.shift} onChange={(e) => set("shift", e.target.value)} />
+            <Input label="N\u00b0 OF / OC" value={form.orderNumber} onChange={(e) => set("orderNumber", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader><h3 className="font-semibold">Temps (en minutes)</h3></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <Input id="plannedTime" type="number" step="0.1" label="Temps planifié" error={errors.plannedTime?.message} {...register("plannedTime")} />
-              <Input id="plannedUsefulTime" type="number" step="0.1" label="Temps utile planifié" error={errors.plannedUsefulTime?.message} {...register("plannedUsefulTime")} />
-              <Input id="actualRunningTime" type="number" step="0.1" label="Temps fonctionnement réel" error={errors.actualRunningTime?.message} {...register("actualRunningTime")} />
-              <Input id="plannedDowntime" type="number" step="0.1" label="Arrêt planifié" {...register("plannedDowntime")} />
-              <Input id="unplannedDowntime" type="number" step="0.1" label="Arrêt non planifié" {...register("unplannedDowntime")} />
-              <Input id="formatChangeTime" type="number" step="0.1" label="Changement format" {...register("formatChangeTime")} />
-              <Input id="adjustmentTime" type="number" step="0.1" label="Réglage" {...register("adjustmentTime")} />
-              <Input id="cleaningTime" type="number" step="0.1" label="Nettoyage" {...register("cleaningTime")} />
-              <Input id="qualityWaitTime" type="number" step="0.1" label="Attente qualité" {...register("qualityWaitTime")} />
-              <Input id="maintenanceWaitTime" type="number" step="0.1" label="Attente maintenance" {...register("maintenanceWaitTime")} />
-              <Input id="materialWaitTime" type="number" step="0.1" label="Attente matières/AC" {...register("materialWaitTime")} />
-              <Input id="microStopTime" type="number" step="0.1" label="Micro-arrêts" {...register("microStopTime")} />
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><h3 className="font-semibold">Temps (en minutes)</h3></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <Input label="Temps planifi\u00e9" type="number" step="0.1" value={form.plannedTime} onChange={(e) => set("plannedTime", e.target.value)} />
+            <Input label="Temps fonctionnement r\u00e9el" type="number" step="0.1" value={form.actualRunningTime} onChange={(e) => set("actualRunningTime", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader><h3 className="font-semibold">Vitesses et quantités</h3></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              <Input id="theoreticalSpeed" type="number" step="0.1" label="Vitesse théorique (u/min)" error={errors.theoreticalSpeed?.message} {...register("theoreticalSpeed")} />
-              <Input id="actualSpeed" type="number" step="0.1" label="Vitesse réelle (u/min)" error={errors.actualSpeed?.message} {...register("actualSpeed")} />
-              <Input id="quantityProduced" type="number" step="1" label="Quantité produite" error={errors.quantityProduced?.message} {...register("quantityProduced")} />
-              <Input id="quantityConform" type="number" step="1" label="Quantité conforme" error={errors.quantityConform?.message} {...register("quantityConform")} />
-              <Input id="quantityRejected" type="number" step="1" label="Quantité rejetée" {...register("quantityRejected")} />
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><h3 className="font-semibold">Vitesses et quantit\u00e9s</h3></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <Input label="Vitesse th\u00e9orique (u/min)" type="number" step="0.1" value={form.theoreticalSpeed} onChange={(e) => set("theoreticalSpeed", e.target.value)} />
+            <Input label="Vitesse r\u00e9elle (u/min)" type="number" step="0.1" value={form.actualSpeed} onChange={(e) => set("actualSpeed", e.target.value)} />
+            <Input label="Quantit\u00e9 produite" type="number" step="1" value={form.quantityProduced} onChange={(e) => set("quantityProduced", e.target.value)} />
+            <Input label="Quantit\u00e9 conforme" type="number" step="1" value={form.quantityConform} onChange={(e) => set("quantityConform", e.target.value)} />
+            <Input label="Quantit\u00e9 rejet\u00e9e" type="number" step="1" value={form.quantityRejected} onChange={(e) => set("quantityRejected", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader><h3 className="font-semibold">Commentaire</h3></CardHeader>
-          <CardContent>
-            <textarea
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              rows={3}
-              placeholder="Commentaire opérateur / superviseur..."
-              {...register("comment")}
-            />
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><h3 className="font-semibold">Commentaire</h3></CardHeader>
+        <CardContent>
+          <textarea
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            rows={3}
+            placeholder="Commentaire op\u00e9rateur / superviseur..."
+            value={form.comment}
+            onChange={(e) => set("comment", e.target.value)}
+          />
+        </CardContent>
+      </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit" loading={submitting}>Enregistrer</Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>Annuler</Button>
-        </div>
-      </form>
+      <div className="flex gap-3">
+        <Button onClick={handleSubmit} loading={submitting}>Enregistrer</Button>
+        <Button variant="outline" onClick={() => router.back()}>Annuler</Button>
+      </div>
     </div>
   );
 }

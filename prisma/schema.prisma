@@ -8,427 +8,167 @@ datasource db {
 }
 
 // ============================================
-// AUTHENTICATION & USERS
+// USERS
 // ============================================
 
 enum UserRole {
   ADMIN
-  DIRECTION
-  RESP_PRODUCTION
-  RESP_MAINTENANCE
-  RESP_QUALITE
-  SUPERVISEUR
+  RESPONSABLE
+  OPERATEUR
   LECTURE_SEULE
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String
-  password      String
-  role          UserRole  @default(LECTURE_SEULE)
-  active        Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(OPERATEUR)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  productionEntries  ProductionEntry[]  @relation("CreatedByUser")
-  updatedEntries     ProductionEntry[]  @relation("UpdatedByUser")
-  downtimeEntries    DowntimeEntry[]    @relation("DowntimeCreatedBy")
-  updatedDowntimes   DowntimeEntry[]    @relation("DowntimeUpdatedBy")
-  actionPlans        ActionPlan[]       @relation("ActionCreatedBy")
-  assignedActions    ActionPlan[]       @relation("ActionAssignedTo")
-  auditLogs          AuditLog[]
+  batches    Batch[]    @relation("BatchCreatedBy")
+  downtimes  Downtime[] @relation("DowntimeCreatedBy")
+  auditLogs  AuditLog[]
 
-  @@index([role])
   @@index([email])
 }
 
 // ============================================
-// REFERENTIALS
+// LINE
 // ============================================
 
-model Site {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String   @unique
-  address   String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  workshops Workshop[]
-}
-
-model Workshop {
+model Line {
   id        String   @id @default(cuid())
   name      String
   code      String   @unique
-  siteId    String
+  lineType  String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  site  Site             @relation(fields: [siteId], references: [id])
-  lines PackagingLine[]
+  batches   Batch[]
 
-  @@index([siteId])
-}
-
-model PackagingLine {
-  id                    String   @id @default(cuid())
-  name                  String
-  code                  String   @unique
-  workshopId            String
-  lineType              String?
-  active                Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  workshop          Workshop            @relation(fields: [workshopId], references: [id])
-  productionEntries ProductionEntry[]
-  downtimeEntries   DowntimeEntry[]
-  kpiThresholds     KPIThreshold[]
-  productLineConfigs ProductLineConfig[]
-
-  @@index([workshopId])
   @@index([code])
 }
 
+// ============================================
+// PRODUCT
+// ============================================
+
 model Product {
-  id                    String   @id @default(cuid())
-  name                  String
-  code                  String   @unique
-  family                String?
-  form                  String?
-  dosage                String?
-  primaryPackaging      String?
-  secondaryPackaging    String?
-  standardLotSize       Float?
-  targetYield           Float?
-  targetRejectRate      Float?
-  targetOEE             Float?
-  qualityConstraints    String?  @db.Text
-  processConstraints    String?  @db.Text
-  planningNotes         String?  @db.Text
-  comments              String?  @db.Text
-  active                Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                 String  @id @default(cuid())
+  name               String
+  code               String  @unique
+  family             String?
+  form               String?
+  dosage             String?
+  unitsPerPack       Int?
+  nominalSpeed       Float?
+  targetOEE          Float?
+  targetRejectRate   Float?
+  standardLotSize    Float?
+  formatChangeTime   Float?
+  cleaningTime       Float?
+  comments           String? @db.Text
+  active             Boolean @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  formats            Format[]
-  productionEntries  ProductionEntry[]
-  productLineConfigs ProductLineConfig[]
-}
+  batches   Batch[]
 
-model Format {
-  id                    String   @id @default(cuid())
-  name                  String
-  code                  String   @unique
-  productId             String
-  unitsPerBlister       Int?
-  blistersPerBox        Int?
-  boxesPerCarton        Int?
-  cartonsPerPallet      Int?
-  unitsPerPack          Int?
-  active                Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productionEntries ProductionEntry[]
-
-  @@index([productId])
-}
-
-model ProductLineConfig {
-  id                    String   @id @default(cuid())
-  productId             String
-  lineId                String
-  nominalSpeed          Float?
-  standardSpeed         Float?
-  startupTime           Float?
-  lineEmptyingTime      Float?
-  formatChangeTime      Float?
-  lotChangeTime         Float?
-  cleaningTime          Float?
-  adjustmentTime        Float?
-  targetOEE             Float?
-  comments              String?  @db.Text
-  active                Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  line    PackagingLine  @relation(fields: [lineId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, lineId])
-  @@index([productId])
-  @@index([lineId])
-}
-
-model Shift {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String   @unique
-  startTime String
-  endTime   String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  productionEntries ProductionEntry[]
-  downtimeEntries   DowntimeEntry[]
-}
-
-model Team {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  productionEntries ProductionEntry[]
+  @@index([code])
 }
 
 // ============================================
-// DOWNTIME CAUSES
+// DOWNTIME TYPE (referential)
 // ============================================
 
-enum DowntimeType {
-  PLANNED
-  UNPLANNED
-}
-
-enum Responsibility {
-  PRODUCTION
-  MAINTENANCE
-  QUALITE
-  LOGISTIQUE
-  AUTRE
-}
-
-model DowntimeCause {
-  id             String       @id @default(cuid())
-  name           String
-  code           String       @unique
-  type           DowntimeType
-  responsibility Responsibility
-  active         Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  subCauses       DowntimeSubCause[]
-  downtimeEntries DowntimeEntry[]
-}
-
-model DowntimeSubCause {
+model DowntimeType {
   id        String   @id @default(cuid())
   name      String
   code      String   @unique
-  causeId   String
+  category  String
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cause           DowntimeCause   @relation(fields: [causeId], references: [id])
-  downtimeEntries DowntimeEntry[]
-
-  @@index([causeId])
+  downtimes Downtime[]
 }
 
 // ============================================
-// PRODUCTION DATA
+// BATCH (lot de production)
 // ============================================
 
-enum ValidationStatus {
-  DRAFT
-  SUBMITTED
-  VALIDATED
-  REJECTED
-}
+model Batch {
+  id                String   @id @default(cuid())
+  lot               String
+  lineId            String
+  productId         String
+  date              DateTime @db.Date
+  shift             String
+  orderNumber       String?
 
-model ProductionEntry {
-  id                    String           @id @default(cuid())
-  date                  DateTime         @db.Date
-  lineId                String
-  shiftId               String
-  teamId                String?
-  productId             String
-  formatId              String
-  lot                   String
-  orderNumber           String?
-
-  // Times (in minutes)
-  plannedTime           Float
-  plannedUsefulTime     Float
-  actualRunningTime     Float
-  plannedDowntime       Float            @default(0)
-  unplannedDowntime     Float            @default(0)
-  formatChangeTime      Float            @default(0)
-  adjustmentTime        Float            @default(0)
-  cleaningTime          Float            @default(0)
-  qualityWaitTime       Float            @default(0)
-  maintenanceWaitTime   Float            @default(0)
-  materialWaitTime      Float            @default(0)
-  microStopTime         Float            @default(0)
+  // Times (minutes)
+  plannedTime       Float    @default(0)
+  actualRunningTime Float    @default(0)
 
   // Speed
-  theoreticalSpeed      Float
-  actualSpeed           Float
+  theoreticalSpeed  Float    @default(0)
+  actualSpeed       Float    @default(0)
 
   // Quantities
-  quantityProduced      Float
-  quantityConform       Float
-  quantityRejected      Float            @default(0)
+  quantityProduced  Float    @default(0)
+  quantityConform   Float    @default(0)
+  quantityRejected  Float    @default(0)
 
-  // Calculated KPIs (stored for performance)
-  availability          Float?
-  performance           Float?
-  quality               Float?
-  oee                   Float?
+  // Calculated KPIs
+  availability      Float?
+  performance       Float?
+  quality           Float?
+  oee               Float?
 
-  comment               String?
-  status                ValidationStatus @default(DRAFT)
+  comment           String?
+  status            String   @default("DRAFT")
 
-  createdById           String
-  updatedById           String?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  createdById       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  line      PackagingLine @relation(fields: [lineId], references: [id])
-  shift     Shift         @relation(fields: [shiftId], references: [id])
-  team      Team?         @relation(fields: [teamId], references: [id])
-  product   Product       @relation(fields: [productId], references: [id])
-  format    Format        @relation(fields: [formatId], references: [id])
-  createdBy User          @relation("CreatedByUser", fields: [createdById], references: [id])
-  updatedBy User?         @relation("UpdatedByUser", fields: [updatedById], references: [id])
+  line      Line      @relation(fields: [lineId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+  createdBy User      @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  downtimes Downtime[]
 
-  downtimeEntries DowntimeEntry[]
-
-  @@index([date])
   @@index([lineId])
-  @@index([shiftId])
   @@index([productId])
-  @@index([lineId, date])
-  @@index([status])
-}
-
-// ============================================
-// DOWNTIME ENTRIES
-// ============================================
-
-enum DowntimeStatus {
-  OPEN
-  IN_PROGRESS
-  RESOLVED
-  CLOSED
-}
-
-model DowntimeEntry {
-  id                  String         @id @default(cuid())
-  productionEntryId   String?
-  lineId              String
-  shiftId             String?
-  date                DateTime       @db.Date
-  startTime           DateTime
-  endTime             DateTime?
-  duration            Float?
-  type                DowntimeType
-  causeId             String
-  subCauseId          String?
-  description         String?
-  responsibility      Responsibility
-  estimatedImpact     Float?
-  immediateAction     String?
-  status              DowntimeStatus @default(OPEN)
-
-  createdById         String
-  updatedById         String?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-
-  productionEntry ProductionEntry? @relation(fields: [productionEntryId], references: [id])
-  line            PackagingLine    @relation(fields: [lineId], references: [id])
-  shift           Shift?           @relation(fields: [shiftId], references: [id])
-  cause           DowntimeCause    @relation(fields: [causeId], references: [id])
-  subCause        DowntimeSubCause? @relation(fields: [subCauseId], references: [id])
-  createdBy       User             @relation("DowntimeCreatedBy", fields: [createdById], references: [id])
-  updatedBy       User?            @relation("DowntimeUpdatedBy", fields: [updatedById], references: [id])
-
-  actionPlans ActionPlan[]
-
-  @@index([lineId])
   @@index([date])
-  @@index([causeId])
-  @@index([lineId, date])
+  @@index([lot])
 }
 
 // ============================================
-// ACTION PLANS
+// DOWNTIME (arrêt)
 // ============================================
 
-enum ActionPriority {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum ActionStatus {
-  TODO
-  IN_PROGRESS
-  DONE
-  CANCELLED
-  OVERDUE
-}
-
-model ActionPlan {
-  id              String         @id @default(cuid())
-  title           String
+model Downtime {
+  id              String   @id @default(cuid())
+  batchId         String
+  downtimeTypeId  String
+  startTime       DateTime
+  endTime         DateTime?
+  duration        Float?
   description     String?
-  downtimeEntryId String?
-  causeId         String?
-  assignedToId    String
-  targetDate      DateTime       @db.Date
-  priority        ActionPriority @default(MEDIUM)
-  status          ActionStatus   @default(TODO)
-  progress        Int            @default(0)
-  comment         String?
-  completedAt     DateTime?
-
   createdById     String
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  downtimeEntry DowntimeEntry? @relation(fields: [downtimeEntryId], references: [id])
-  assignedTo    User           @relation("ActionAssignedTo", fields: [assignedToId], references: [id])
-  createdBy     User           @relation("ActionCreatedBy", fields: [createdById], references: [id])
+  batch        Batch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  downtimeType DowntimeType @relation(fields: [downtimeTypeId], references: [id])
+  createdBy    User         @relation("DowntimeCreatedBy", fields: [createdById], references: [id])
 
-  @@index([status])
-  @@index([assignedToId])
-  @@index([targetDate])
-}
-
-// ============================================
-// KPI THRESHOLDS
-// ============================================
-
-model KPIThreshold {
-  id        String   @id @default(cuid())
-  lineId    String?
-  kpiName   String
-  greenMin  Float
-  orangeMin Float
-  redMax    Float
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  line PackagingLine? @relation(fields: [lineId], references: [id])
-
-  @@unique([lineId, kpiName])
-  @@index([kpiName])
+  @@index([batchId])
+  @@index([downtimeTypeId])
 }
 
 // ============================================
@@ -436,14 +176,14 @@ model KPIThreshold {
 // ============================================
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String?
-  action      String
-  entity      String
-  entityId    String
-  oldValue    String?  @db.Text
-  newValue    String?  @db.Text
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  oldValue  String?  @db.Text
+  newValue  String?  @db.Text
+  createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
 

@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { downtimeEntrySchema, DowntimeEntryInput } from "@/lib/validations";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -14,113 +11,107 @@ import { Button } from "@/components/ui/button";
 export default function NewDowntimePage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const [lines, setLines] = useState<any[]>([]);
-  const [shifts, setShifts] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
   const [causes, setCauses] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<DowntimeEntryInput>({
-    resolver: zodResolver(downtimeEntrySchema),
-    defaultValues: { type: "UNPLANNED", responsibility: "PRODUCTION", status: "OPEN" },
+  const [form, setForm] = useState({
+    batchId: "", downtimeTypeId: "", startTime: "", endTime: "", duration: "", description: "",
   });
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/lines").then((r) => r.json()),
-      fetch("/api/shifts").then((r) => r.json()),
+      fetch("/api/production").then((r) => r.json()),
       fetch("/api/causes").then((r) => r.json()),
-    ]).then(([l, s, c]) => {
-      setLines(l);
-      setShifts(s);
-      setCauses(c);
-    });
+    ]).then(([b, c]) => { setBatches(b); setCauses(c); });
   }, []);
 
-  const selectedCauseId = watch("causeId");
-  const selectedCause = causes.find((c: any) => c.id === selectedCauseId);
-  const subCauses = selectedCause?.subCauses || [];
+  const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  async function onSubmit(data: DowntimeEntryInput) {
-    setSubmitting(true);
-    const res = await fetch("/api/downtimes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, userId: session?.user?.id }),
-    });
-    if (res.ok) router.push("/downtimes");
-    setSubmitting(false);
+  const batchOptions = batches.map((b: any) => ({
+    value: b.id,
+    label: `${b.lot} - ${b.line?.code || "?"} - ${b.date ? new Date(b.date).toLocaleDateString("fr-FR") : ""}`,
+  }));
+
+  const causeOptions = causes.map((c: any) => ({ value: c.id, label: c.name }));
+
+  async function handleSubmit() {
+    if (!form.batchId || !form.downtimeTypeId) {
+      setError("Lot et type d'arr\u00eat requis"); return;
+    }
+    setSubmitting(true); setError("");
+    try {
+      const payload = {
+        batchId: form.batchId,
+        downtimeTypeId: form.downtimeTypeId,
+        startTime: form.startTime || null,
+        endTime: form.endTime || null,
+        duration: form.duration ? Number(form.duration) : null,
+        description: form.description || null,
+        userId: session?.user?.id,
+      };
+      const res = await fetch("/api/downtimes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) { router.push("/downtimes"); } else {
+        const data = await res.json();
+        setError(data.error || "Erreur");
+      }
+    } catch { setError("Erreur r\u00e9seau"); } finally { setSubmitting(false); }
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Nouvel arrêt</h1>
-        <p className="text-sm text-slate-500">Déclarer un arrêt de ligne</p>
+        <h1 className="text-2xl font-bold text-slate-900">Nouvel arr\u00eat</h1>
+        <p className="text-sm text-slate-500">D\u00e9clarer un arr\u00eat de ligne</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader><h3 className="font-semibold">Identification</h3></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Select id="lineId" label="Ligne" options={lines.map((l: any) => ({ value: l.id, label: l.name }))} placeholder="Sélectionner" error={errors.lineId?.message} {...register("lineId")} />
-              <Input id="date" type="date" label="Date" error={errors.date?.message} {...register("date")} />
-              <Select id="shiftId" label="Shift" options={shifts.map((s: any) => ({ value: s.id, label: s.name }))} placeholder="Optionnel" {...register("shiftId")} />
-              <Input id="startTime" type="datetime-local" label="Début" error={errors.startTime?.message} {...register("startTime")} />
-              <Input id="endTime" type="datetime-local" label="Fin (optionnel)" {...register("endTime")} />
-              <Input id="duration" type="number" step="0.1" label="Durée (min)" {...register("duration")} />
-            </div>
-          </CardContent>
-        </Card>
+      {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        <Card>
-          <CardHeader><h3 className="font-semibold">Classification</h3></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Select
-                id="type" label="Type"
-                options={[{ value: "PLANNED", label: "Planifié" }, { value: "UNPLANNED", label: "Non planifié" }]}
-                error={errors.type?.message} {...register("type")}
-              />
-              <Select
-                id="responsibility" label="Responsabilité"
-                options={[
-                  { value: "PRODUCTION", label: "Production" },
-                  { value: "MAINTENANCE", label: "Maintenance" },
-                  { value: "QUALITE", label: "Qualité" },
-                  { value: "LOGISTIQUE", label: "Logistique" },
-                  { value: "AUTRE", label: "Autre" },
-                ]}
-                error={errors.responsibility?.message} {...register("responsibility")}
-              />
-              <Select id="causeId" label="Cause principale" options={causes.map((c: any) => ({ value: c.id, label: c.name }))} placeholder="Sélectionner" error={errors.causeId?.message} {...register("causeId")} />
-              <Select id="subCauseId" label="Sous-cause" options={subCauses.map((sc: any) => ({ value: sc.id, label: sc.name }))} placeholder="Optionnel" {...register("subCauseId")} />
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><h3 className="font-semibold">Identification</h3></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Select label="Lot (Batch) *" options={batchOptions} placeholder="S\u00e9lectionner un lot" value={form.batchId} onChange={(e) => set("batchId", e.target.value)} />
+            <Select label="Type d'arr\u00eat *" options={causeOptions} placeholder="S\u00e9lectionner" value={form.downtimeTypeId} onChange={(e) => set("downtimeTypeId", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader><h3 className="font-semibold">Détails</h3></CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" rows={3} {...register("description")} />
-              </div>
-              <Input id="estimatedImpact" type="number" step="0.1" label="Impact estimé (unités perdues)" {...register("estimatedImpact")} />
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Action immédiate</label>
-                <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" rows={2} {...register("immediateAction")} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><h3 className="font-semibold">Temps</h3></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input label="D\u00e9but" type="datetime-local" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} />
+            <Input label="Fin" type="datetime-local" value={form.endTime} onChange={(e) => set("endTime", e.target.value)} />
+            <Input label="Dur\u00e9e (min)" type="number" step="0.1" value={form.duration} onChange={(e) => set("duration", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="flex gap-3">
-          <Button type="submit" loading={submitting}>Enregistrer</Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>Annuler</Button>
-        </div>
-      </form>
+      <Card>
+        <CardHeader><h3 className="font-semibold">D\u00e9tails</h3></CardHeader>
+        <CardContent>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+            <textarea
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              rows={3}
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex gap-3">
+        <Button onClick={handleSubmit} loading={submitting}>Enregistrer</Button>
+        <Button variant="outline" onClick={() => router.back()}>Annuler</Button>
+      </div>
     </div>
   );
 }
