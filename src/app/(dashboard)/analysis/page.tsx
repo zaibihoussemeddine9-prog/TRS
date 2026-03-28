@@ -2,88 +2,54 @@
 
 import { useEffect, useState } from "react";
 import { ParetoChart } from "@/components/charts/pareto-chart";
+import { DowntimePieChart } from "@/components/charts/downtime-pie-chart";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Select } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 
 export default function AnalysisPage() {
-  const [downtimes, setDowntimes] = useState<any[]>([]);
-  const [lines, setLines] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterLine, setFilterLine] = useState("");
-  const [filterFrom, setFilterFrom] = useState("");
-  const [filterTo, setFilterTo] = useState("");
 
   useEffect(() => {
-    fetch("/api/lines").then((r) => r.json()).then((data) =>
-      setLines(data.map((l: any) => ({ value: l.id, label: l.name })))
-    );
+    fetch("/api/downtimes").then((r) => r.json()).then(setEvents).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filterLine) params.set("lineId", filterLine);
-      if (filterFrom) params.set("dateFrom", filterFrom);
-      if (filterTo) params.set("dateTo", filterTo);
-      const res = await fetch(`/api/downtimes?${params}`);
-      setDowntimes(await res.json());
-      setLoading(false);
-    }
-    load();
-  }, [filterLine, filterFrom, filterTo]);
-
-  // By cause (downtimeType.name)
-  const causeMap = new Map<string, number>();
-  downtimes.forEach((d: any) => {
-    const name = d.downtimeType?.name || "Inconnu";
-    causeMap.set(name, (causeMap.get(name) || 0) + (d.duration || 0));
+  // By category
+  const catMap = new Map<string, number>();
+  events.forEach((e: any) => {
+    const name = e.downtimeType?.subCategory?.category?.name || "Autre";
+    catMap.set(name, (catMap.get(name) || 0) + (e.duration || 0));
   });
-  const causeParetoData = Array.from(causeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
+  const catData = Array.from(catMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
 
-  // By line (batch.line.code)
+  // By type
+  const typeMap = new Map<string, number>();
+  events.forEach((e: any) => {
+    const name = e.downtimeType?.name || "Inconnu";
+    typeMap.set(name, (typeMap.get(name) || 0) + (e.duration || 0));
+  });
+  const typeData = Array.from(typeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
+
+  // By line
   const lineMap = new Map<string, number>();
-  downtimes.forEach((d: any) => {
-    const name = d.batch?.line?.code || "N/A";
-    lineMap.set(name, (lineMap.get(name) || 0) + (d.duration || 0));
+  events.forEach((e: any) => {
+    const name = e.batch?.line?.name || "N/A";
+    lineMap.set(name, (lineMap.get(name) || 0) + (e.duration || 0));
   });
-  const lineParetoData = Array.from(lineMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
+  const lineData = Array.from(lineMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
 
-  const totalDowntime = downtimes.reduce((s: number, d: any) => s + (d.duration || 0), 0);
+  const total = events.reduce((s: number, e: any) => s + (e.duration || 0), 0);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Analyse Pareto</h1>
-        <p className="text-sm text-slate-500">Analyse des causes de pertes et arrêts</p>
+        <p className="text-sm text-slate-500">Analyse des causes d'arrêt — Total : {Math.round(total)} min ({events.length} arrêts)</p>
       </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
-        <div className="w-full sm:w-48">
-          <Select options={lines} placeholder="Toutes les lignes" value={filterLine} onChange={(e) => setFilterLine(e.target.value)} />
-        </div>
-        <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full sm:w-40" />
-        <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full sm:w-40" />
-        <div className="flex items-center rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-          Total : {Math.round(totalDowntime)} min ({downtimes.length} arrêts)
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex h-32 items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-        </div>
-      ) : (
+      {loading ? <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div> : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader><h3 className="text-lg font-semibold">Pareto par cause</h3></CardHeader>
-            <CardContent><ParetoChart data={causeParetoData} /></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><h3 className="text-lg font-semibold">Pareto par ligne</h3></CardHeader>
-            <CardContent><ParetoChart data={lineParetoData} /></CardContent>
-          </Card>
+          <Card><CardHeader><h3 className="text-lg font-semibold">Pareto par type d'arrêt</h3></CardHeader><CardContent><ParetoChart data={typeData} /></CardContent></Card>
+          <Card><CardHeader><h3 className="text-lg font-semibold">Pareto par ligne</h3></CardHeader><CardContent><ParetoChart data={lineData} /></CardContent></Card>
+          <Card><CardHeader><h3 className="text-lg font-semibold">Répartition par catégorie</h3></CardHeader><CardContent><DowntimePieChart data={catData} /></CardContent></Card>
         </div>
       )}
     </div>

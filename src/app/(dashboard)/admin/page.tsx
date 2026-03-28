@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Package, AlertTriangle, Factory } from "lucide-react";
+import { Users, Package, AlertTriangle, Factory, Boxes } from "lucide-react";
 
 const adminItems = [
   { href: "/admin/users", label: "Utilisateurs", description: "Gestion des comptes et rôles", icon: Users },
   { href: "/admin/lines", label: "Lignes", description: "Lignes de conditionnement", icon: Factory },
   { href: "/admin/products", label: "Produits", description: "Référentiel produits", icon: Package },
-  { href: "/admin/causes", label: "Types d'arrêt", description: "Référentiel des types d'arrêt", icon: AlertTriangle },
+  { href: "/admin/lots", label: "Lots", description: "Lots de production", icon: Boxes },
+  { href: "/admin/causes", label: "Types d'arrêt", description: "Catégories, sous-catégories et types", icon: AlertTriangle },
 ];
 
 export default function AdminPage() {
@@ -18,7 +19,6 @@ export default function AdminPage() {
         <h1 className="text-2xl font-bold text-slate-900">Administration</h1>
         <p className="text-sm text-slate-500">Gestion des référentiels et paramètres</p>
       </div>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {adminItems.map((item) => (
           <Link key={item.href} href={item.href}>

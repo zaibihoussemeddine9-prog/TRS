@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calcAggregateOEE, BatchData } from "@/lib/trs-calculations";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -8,68 +7,81 @@ export async function GET(req: NextRequest) {
   const dateTo = searchParams.get("dateTo");
   const lineId = searchParams.get("lineId");
 
-  const where: Record<string, unknown> = {};
-  if (lineId) where.lineId = lineId;
+  const batchWhere: Record<string, unknown> = {};
+  if (lineId) batchWhere.lineId = lineId;
   if (dateFrom || dateTo) {
-    where.date = {};
-    if (dateFrom) (where.date as Record<string, unknown>).gte = new Date(dateFrom);
-    if (dateTo) (where.date as Record<string, unknown>).lte = new Date(dateTo);
+    batchWhere.date = {};
+    if (dateFrom) (batchWhere.date as Record<string, unknown>).gte = new Date(dateFrom);
+    if (dateTo) (batchWhere.date as Record<string, unknown>).lte = new Date(dateTo);
   }
 
   try {
     const batches = await prisma.batch.findMany({
-      where,
-      include: { line: true, product: true },
+      where: batchWhere,
+      include: {
+        line: true,
+        product: true,
+        shiftProductions: true,
+        downtimeEvents: { include: { downtimeType: { include: { subCategory: { include: { category: true } } } } } },
+      },
     });
 
-    const toBatchData = (b: any): BatchData => ({
-      plannedTime: b.plannedTime,
-      actualRunningTime: b.actualRunningTime,
-      theoreticalSpeed: b.theoreticalSpeed,
-      quantityProduced: b.quantityProduced,
-      quantityConform: b.quantityConform,
+    // Aggregate production per batch
+    const batchStats = batches.map((b) => {
+      const totalProduced = b.shiftProductions.reduce((s, sp) => s + sp.quantityProduced, 0);
+      const totalConform = b.shiftProductions.reduce((s, sp) => s + sp.quantityConform, 0);
+      const totalDowntime = b.downtimeEvents.reduce((s, de) => s + (de.duration || 0), 0);
+      return { ...b, totalProduced, totalConform, totalDowntime };
     });
 
-    const globalOEE = calcAggregateOEE(batches.map(toBatchData));
+    const totalProduced = batchStats.reduce((s, b) => s + b.totalProduced, 0);
+    const totalConform = batchStats.reduce((s, b) => s + b.totalConform, 0);
+    const totalDowntime = batchStats.reduce((s, b) => s + b.totalDowntime, 0);
+    const totalRejects = totalProduced - totalConform;
 
     const lines = await prisma.line.findMany({ where: { active: true } });
     const lineKPIs = lines.map((line) => {
-      const lb = batches.filter((b) => b.lineId === line.id);
-      const oee = calcAggregateOEE(lb.map(toBatchData));
-      return { lineId: line.id, lineName: line.name, lineCode: line.code, ...oee, entryCount: lb.length };
+      const lb = batchStats.filter((b) => b.lineId === line.id);
+      const prod = lb.reduce((s, b) => s + b.totalProduced, 0);
+      const conf = lb.reduce((s, b) => s + b.totalConform, 0);
+      const quality = prod > 0 ? conf / prod : 0;
+      return {
+        lineId: line.id, lineName: line.name, lineCode: line.code,
+        availability: 0, performance: 0, quality, oee: 0,
+        entryCount: lb.length,
+      };
     });
 
-    const dailyMap = new Map<string, typeof batches>();
-    batches.forEach((b) => {
+    // Daily trend
+    const dailyMap = new Map<string, typeof batchStats>();
+    batchStats.forEach((b) => {
       const key = new Date(b.date).toISOString().split("T")[0];
       if (!dailyMap.has(key)) dailyMap.set(key, []);
       dailyMap.get(key)!.push(b);
     });
     const dailyTrend = Array.from(dailyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, dayBatches]) => ({ date, ...calcAggregateOEE(dayBatches.map(toBatchData)) }));
+      .map(([date, dayBatches]) => {
+        const prod = dayBatches.reduce((s, b) => s + b.totalProduced, 0);
+        const conf = dayBatches.reduce((s, b) => s + b.totalConform, 0);
+        return { date, availability: 0, performance: 0, quality: prod > 0 ? conf / prod : 0, oee: 0 };
+      });
 
-    const downtimes = await prisma.downtime.findMany({
-      where: lineId ? { batch: { lineId } } : {},
-      include: { downtimeType: true },
-    });
-
+    // Downtime by cause
     const causeMap = new Map<string, { name: string; total: number; count: number }>();
-    downtimes.forEach((d) => {
-      const key = d.downtimeTypeId;
-      const ex = causeMap.get(key) || { name: d.downtimeType.name, total: 0, count: 0 };
-      ex.total += d.duration || 0;
-      ex.count += 1;
-      causeMap.set(key, ex);
+    batchStats.forEach((b) => {
+      b.downtimeEvents.forEach((de) => {
+        const catName = de.downtimeType?.subCategory?.category?.name || "Autre";
+        const ex = causeMap.get(catName) || { name: catName, total: 0, count: 0 };
+        ex.total += de.duration || 0;
+        ex.count += 1;
+        causeMap.set(catName, ex);
+      });
     });
     const downtimeByCause = Array.from(causeMap.values()).sort((a, b) => b.total - a.total);
 
-    const totalDowntime = downtimes.reduce((s, d) => s + (d.duration || 0), 0);
-    const totalRejects = batches.reduce((s, b) => s + b.quantityRejected, 0);
-    const totalProduced = batches.reduce((s, b) => s + b.quantityProduced, 0);
-
     return NextResponse.json({
-      global: globalOEE,
+      global: { availability: 0, performance: 0, quality: totalProduced > 0 ? totalConform / totalProduced : 0, oee: 0 },
       lineKPIs,
       dailyTrend,
       downtimeByCause,
@@ -77,9 +89,8 @@ export async function GET(req: NextRequest) {
       totalRejects,
       totalProduced,
       rejectRate: totalProduced > 0 ? totalRejects / totalProduced : 0,
-      downtimeCount: downtimes.length,
+      downtimeCount: batchStats.reduce((s, b) => s + b.downtimeEvents.length, 0),
       entryCount: batches.length,
-      activeActions: 0,
     });
   } catch (err) {
     console.error("[GET /api/dashboard]", err);

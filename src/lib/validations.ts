@@ -10,20 +10,12 @@ export const batchSchema = z.object({
   lineId: z.string().min(1, "Ligne requise"),
   productId: z.string().min(1, "Produit requis"),
   date: z.string().min(1, "Date requise"),
-  shift: z.string().min(1, "Shift requis"),
   orderNumber: z.string().optional(),
-  plannedTime: z.coerce.number().min(0).default(0),
-  actualRunningTime: z.coerce.number().min(0).default(0),
-  theoreticalSpeed: z.coerce.number().min(0).default(0),
-  actualSpeed: z.coerce.number().min(0).default(0),
-  quantityProduced: z.coerce.number().min(0).default(0),
-  quantityConform: z.coerce.number().min(0).default(0),
-  quantityRejected: z.coerce.number().min(0).default(0),
   comment: z.string().optional(),
-  status: z.string().default("DRAFT"),
+  status: z.string().default("OPEN"),
 });
 
-export const downtimeSchema = z.object({
+export const downtimeEventSchema = z.object({
   batchId: z.string().min(1, "Lot requis"),
   downtimeTypeId: z.string().min(1, "Type d'arrêt requis"),
   startTime: z.string().min(1, "Heure début requise"),
@@ -32,5 +24,15 @@ export const downtimeSchema = z.object({
   description: z.string().optional(),
 });
 
+export const shiftProductionSchema = z.object({
+  batchId: z.string().min(1, "Lot requis"),
+  shift: z.string().min(1, "Shift requis"),
+  date: z.string().min(1, "Date requise"),
+  quantityProduced: z.coerce.number().min(0).default(0),
+  quantityConform: z.coerce.number().min(0).default(0),
+  quantityRejected: z.coerce.number().min(0).default(0),
+});
+
 export type BatchInput = z.input<typeof batchSchema>;
-export type DowntimeInput = z.input<typeof downtimeSchema>;
+export type DowntimeEventInput = z.input<typeof downtimeEventSchema>;
+export type ShiftProductionInput = z.input<typeof shiftProductionSchema>;

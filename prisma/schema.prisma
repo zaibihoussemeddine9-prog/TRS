@@ -21,9 +21,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  batches    Batch[]    @relation("BatchCreatedBy")
-  downtimes  Downtime[] @relation("DowntimeCreatedBy")
-  auditLogs  AuditLog[]
+  batches          Batch[]           @relation("BatchCreatedBy")
+  downtimeEvents   DowntimeEvent[]   @relation("DowntimeCreatedBy")
+  shiftProductions ShiftProduction[] @relation("ShiftProdCreatedBy")
+  auditLogs        AuditLog[]
 
   @@index([email])
 }
@@ -41,7 +42,7 @@ model Line {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  batches   Batch[]
+  batches Batch[]
 
   @@index([code])
 }
@@ -51,43 +52,80 @@ model Line {
 // ============================================
 
 model Product {
-  id                 String  @id @default(cuid())
-  name               String
-  code               String  @unique
-  family             String?
-  form               String?
-  dosage             String?
-  unitsPerPack       Int?
-  nominalSpeed       Float?
-  targetOEE          Float?
-  targetRejectRate   Float?
-  standardLotSize    Float?
-  formatChangeTime   Float?
-  cleaningTime       Float?
-  comments           String? @db.Text
-  active             Boolean @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  code             String   @unique
+  family           String?
+  form             String?
+  dosage           String?
+  unitsPerPack     Int?
+  nominalSpeed     Float?
+  targetOEE        Float?
+  targetRejectRate Float?
+  standardLotSize  Float?
+  formatChangeTime Float?
+  cleaningTime     Float?
+  comments         String?  @db.Text
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  batches   Batch[]
+  batches Batch[]
 
   @@index([code])
 }
 
 // ============================================
-// DOWNTIME TYPE (referential)
+// DOWNTIME HIERARCHY: Category > SubCategory > Type
 // ============================================
 
-model DowntimeType {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  category  String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model DowntimeCategory {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  color       String   @default("#3b82f6")
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  downtimes Downtime[]
+  subCategories DowntimeSubCategory[]
+
+  @@index([code])
+}
+
+model DowntimeSubCategory {
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique
+  categoryId String
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category      DowntimeCategory @relation(fields: [categoryId], references: [id])
+  downtimeTypes DowntimeType[]
+
+  @@index([categoryId])
+  @@index([code])
+}
+
+model DowntimeType {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  subCategoryId String
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subCategory    DowntimeSubCategory @relation(fields: [subCategoryId], references: [id])
+  downtimeEvents DowntimeEvent[]
+
+  @@index([subCategoryId])
+  @@index([code])
 }
 
 // ============================================
@@ -95,44 +133,23 @@ model DowntimeType {
 // ============================================
 
 model Batch {
-  id                String   @id @default(cuid())
-  lot               String
-  lineId            String
-  productId         String
-  date              DateTime @db.Date
-  shift             String
-  orderNumber       String?
+  id          String   @id @default(cuid())
+  lot         String
+  lineId      String
+  productId   String
+  date        DateTime @db.Date
+  orderNumber String?
+  status      String   @default("OPEN")
+  comment     String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Times (minutes)
-  plannedTime       Float    @default(0)
-  actualRunningTime Float    @default(0)
-
-  // Speed
-  theoreticalSpeed  Float    @default(0)
-  actualSpeed       Float    @default(0)
-
-  // Quantities
-  quantityProduced  Float    @default(0)
-  quantityConform   Float    @default(0)
-  quantityRejected  Float    @default(0)
-
-  // Calculated KPIs
-  availability      Float?
-  performance       Float?
-  quality           Float?
-  oee               Float?
-
-  comment           String?
-  status            String   @default("DRAFT")
-
-  createdById       String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  line      Line      @relation(fields: [lineId], references: [id])
-  product   Product   @relation(fields: [productId], references: [id])
-  createdBy User      @relation("BatchCreatedBy", fields: [createdById], references: [id])
-  downtimes Downtime[]
+  line             Line              @relation(fields: [lineId], references: [id])
+  product          Product           @relation(fields: [productId], references: [id])
+  createdBy        User              @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  downtimeEvents   DowntimeEvent[]
+  shiftProductions ShiftProduction[]
 
   @@index([lineId])
   @@index([productId])
@@ -141,20 +158,20 @@ model Batch {
 }
 
 // ============================================
-// DOWNTIME (arrêt)
+// DOWNTIME EVENT (arret enregistre sur un lot)
 // ============================================
 
-model Downtime {
-  id              String   @id @default(cuid())
-  batchId         String
-  downtimeTypeId  String
-  startTime       DateTime
-  endTime         DateTime?
-  duration        Float?
-  description     String?
-  createdById     String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model DowntimeEvent {
+  id             String    @id @default(cuid())
+  batchId        String
+  downtimeTypeId String
+  startTime      DateTime
+  endTime        DateTime?
+  duration       Float?
+  description    String?
+  createdById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   batch        Batch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
   downtimeType DowntimeType @relation(fields: [downtimeTypeId], references: [id])
@@ -162,6 +179,29 @@ model Downtime {
 
   @@index([batchId])
   @@index([downtimeTypeId])
+}
+
+// ============================================
+// SHIFT PRODUCTION (quantite produite par shift)
+// ============================================
+
+model ShiftProduction {
+  id               String   @id @default(cuid())
+  batchId          String
+  shift            String
+  date             DateTime @db.Date
+  quantityProduced Float    @default(0)
+  quantityConform  Float    @default(0)
+  quantityRejected Float    @default(0)
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  batch     Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("ShiftProdCreatedBy", fields: [createdById], references: [id])
+
+  @@index([batchId])
+  @@index([date])
 }
 
 // ============================================

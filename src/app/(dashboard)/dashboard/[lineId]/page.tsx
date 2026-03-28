@@ -3,18 +3,17 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { KPICard } from "@/components/dashboard/kpi-card";
-import { OEEGauge } from "@/components/dashboard/oee-gauge";
-import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { ParetoChart } from "@/components/charts/pareto-chart";
+import { DowntimePieChart } from "@/components/charts/downtime-pie-chart";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { calcAggregateOEE, formatPercent } from "@/lib/trs-calculations";
-import { Clock, TrendingUp, CheckCircle, AlertTriangle } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import { Clock, AlertTriangle, Package, Layers } from "lucide-react";
 
 export default function LineDashboardPage() {
   const params = useParams();
   const lineId = params.lineId as string;
-  const [entries, setEntries] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
   const [downtimes, setDowntimes] = useState<any[]>([]);
   const [lineName, setLineName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -29,7 +28,7 @@ export default function LineDashboardPage() {
         fetch(`/api/lines`),
       ]);
       const [prodData, dtData, linesData] = await Promise.all([prodRes.json(), dtRes.json(), lineRes.json()]);
-      setEntries(prodData);
+      setBatches(prodData);
       setDowntimes(dtData);
       const line = linesData.find((l: any) => l.id === lineId);
       setLineName(line?.name || lineId);
@@ -46,26 +45,23 @@ export default function LineDashboardPage() {
     );
   }
 
-  const oee = calcAggregateOEE(entries);
+  const totalDowntime = downtimes.reduce((s: number, d: any) => s + (d.duration || 0), 0);
 
-  // Daily trend
-  const dailyMap = new Map<string, any[]>();
-  entries.forEach((e: any) => {
-    const key = new Date(e.date).toISOString().split("T")[0];
-    if (!dailyMap.has(key)) dailyMap.set(key, []);
-    dailyMap.get(key)!.push(e);
-  });
-  const dailyTrend = Array.from(dailyMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, dayEntries]) => ({ date, ...calcAggregateOEE(dayEntries) }));
-
-  // Downtime pareto
-  const causeMap = new Map<string, number>();
+  // Downtime pareto by type
+  const typeMap = new Map<string, number>();
   downtimes.forEach((d: any) => {
     const name = d.downtimeType?.name || "Inconnu";
-    causeMap.set(name, (causeMap.get(name) || 0) + (d.duration || 0));
+    typeMap.set(name, (typeMap.get(name) || 0) + (d.duration || 0));
   });
-  const paretoData = Array.from(causeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
+  const typeParetoData = Array.from(typeMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
+
+  // Downtime by category
+  const catMap = new Map<string, number>();
+  downtimes.forEach((d: any) => {
+    const name = d.downtimeType?.subCategory?.category?.name || "Autre";
+    catMap.set(name, (catMap.get(name) || 0) + (d.duration || 0));
+  });
+  const catData = Array.from(catMap.entries()).map(([name, value]) => ({ name, value: Math.round(value) }));
 
   return (
     <div className="space-y-6">
@@ -74,28 +70,43 @@ export default function LineDashboardPage() {
         <p className="text-sm text-slate-500">Derniers 30 jours</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Card className="flex items-center justify-center p-6">
-          <OEEGauge value={oee.oee} />
-        </Card>
-        <div className="grid grid-cols-2 gap-4 lg:col-span-4">
-          <KPICard title="Disponibilité" value={oee.availability} icon={<Clock className="h-5 w-5" />} />
-          <KPICard title="Performance" value={oee.performance} icon={<TrendingUp className="h-5 w-5" />} />
-          <KPICard title="Qualité" value={oee.quality} greenMin={0.95} orangeMin={0.90} icon={<CheckCircle className="h-5 w-5" />} />
-          <KPICard title="Arrêts" value={downtimes.length} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
-        </div>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KPICard title="Lots" value={batches.length} isPercent={false} icon={<Layers className="h-5 w-5" />} />
+        <KPICard title="Arrêts" value={downtimes.length} isPercent={false} icon={<AlertTriangle className="h-5 w-5" />} />
+        <KPICard title="Temps d'arrêt total" value={Math.round(totalDowntime)} isPercent={false} unit="min" icon={<Clock className="h-5 w-5" />} />
+        <KPICard title="Lots ouverts" value={batches.filter((b: any) => b.status === "OPEN").length} isPercent={false} icon={<Package className="h-5 w-5" />} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Évolution du TRS</h3></CardHeader>
-          <CardContent><TrendLineChart data={dailyTrend} target={0.85} /></CardContent>
+          <CardHeader><h3 className="text-lg font-semibold">Pareto des arrêts par type</h3></CardHeader>
+          <CardContent><ParetoChart data={typeParetoData} /></CardContent>
         </Card>
         <Card>
-          <CardHeader><h3 className="text-lg font-semibold">Pareto des arrêts</h3></CardHeader>
-          <CardContent><ParetoChart data={paretoData} /></CardContent>
+          <CardHeader><h3 className="text-lg font-semibold">Répartition par catégorie</h3></CardHeader>
+          <CardContent><DowntimePieChart data={catData} /></CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader><h3 className="text-lg font-semibold">Derniers lots</h3></CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {batches.slice(0, 10).map((b: any) => (
+              <div key={b.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded border p-2 text-sm">
+                <div>
+                  <p className="font-mono font-medium">{b.lot}</p>
+                  <p className="text-xs text-slate-500">{formatDate(b.date)} — {b.product?.name || "—"}</p>
+                </div>
+                <Badge variant={b.status === "OPEN" ? "success" : "default"}>
+                  {b.status === "OPEN" ? "Ouvert" : "Clôturé"}
+                </Badge>
+              </div>
+            ))}
+            {batches.length === 0 && <p className="py-4 text-center text-slate-500">Aucun lot</p>}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><h3 className="text-lg font-semibold">Derniers arrêts</h3></CardHeader>
@@ -105,7 +116,10 @@ export default function LineDashboardPage() {
               <div key={d.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded border p-2 text-sm">
                 <div>
                   <p className="font-medium">{d.downtimeType?.name || "Inconnu"}</p>
-                  <p className="text-xs text-slate-500">{d.startTime ? new Date(d.startTime).toLocaleString("fr-FR") : "—"}</p>
+                  <p className="text-xs text-slate-500">
+                    {d.downtimeType?.subCategory?.category?.name || ""}{d.downtimeType?.subCategory?.name ? ` / ${d.downtimeType.subCategory.name}` : ""}
+                    {d.startTime ? ` — ${new Date(d.startTime).toLocaleString("fr-FR")}` : ""}
+                  </p>
                 </div>
                 <Badge variant="info">
                   {d.duration ? `${Math.round(d.duration)} min` : "En cours"}
