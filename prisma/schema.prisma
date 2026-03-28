@@ -227,6 +227,7 @@ model ProductionDeclaration {
   runningMinutes   Float?
   usefulMinutes    Float?
   unjustifiedMinutes Float?
+  targetQuantity   Float?
   availability     Float?
   performance      Float?
   quality          Float?

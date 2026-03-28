@@ -91,6 +91,7 @@ export default function BatchDetailPage() {
   const totalPlanned = declarations.reduce((s: number, d: any) => s + (d.plannedMinutes || 0), 0);
   const totalUseful = declarations.reduce((s: number, d: any) => s + (d.usefulMinutes || 0), 0);
   const totalUnjustified = declarations.reduce((s: number, d: any) => s + (d.unjustifiedMinutes || 0), 0);
+  const totalTarget = declarations.reduce((s: number, d: any) => s + (d.targetQuantity || 0), 0);
   const batchOEE = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.oee || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
   const batchAvail = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.availability || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
   const batchPerf = totalPlanned > 0 ? declarations.reduce((s: number, d: any) => s + (d.performance || 0) * (d.plannedMinutes || 0), 0) / totalPlanned : 0;
@@ -372,6 +373,7 @@ export default function BatchDetailPage() {
       sortValue: (r) => r.quantityProduced,
       accessor: (r) => r.quantityProduced?.toLocaleString("fr-FR") || "0",
     },
+    { key: "target", header: "Objectif", accessor: (r) => r.targetQuantity ? r.targetQuantity.toLocaleString("fr-FR") : "—" },
     { key: "speed", header: "Cadence", accessor: (r) => r.actualSpeed ? `${r.actualSpeed} u/min` : "—" },
     { key: "micro", header: "µ-arrêts", accessor: (r) => r.microStopMinutes ? `${r.microStopMinutes} min` : "0" },
     { key: "unjustified", header: "Non justifié", sortable: true, sortValue: (r) => r.unjustifiedMinutes || 0, accessor: (r) => {
@@ -548,6 +550,12 @@ export default function BatchDetailPage() {
           <p className="mt-1 text-xs text-slate-500">
             {totalProduced.toLocaleString("fr-FR")} / {standardLotSize > 0 ? standardLotSize.toLocaleString("fr-FR") : "—"} unités
           </p>
+          {totalTarget > 0 && (
+            <p className="mt-1 text-xs text-blue-600 font-medium">
+              Objectif cumulé : {totalTarget.toLocaleString("fr-FR")} u
+              {totalProduced > 0 && ` (réalisé ${((totalProduced / totalTarget) * 100).toFixed(0)}%)`}
+            </p>
+          )}
         </Card>
         <Card className="p-4">
           <p className="text-sm font-medium text-slate-700 mb-2">Décomposition du temps</p>

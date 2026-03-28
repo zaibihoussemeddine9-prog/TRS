@@ -34,14 +34,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Utilisateur non reconnu. Veuillez vous reconnecter." }, { status: 401 });
     }
 
-    const declDate = new Date(d.date);
-    const trsFields = await computeTRS(d.batchId, d.shiftId, declDate, d.quantityProduced, d.microStopMinutes);
+    const trsFields = await computeTRS(d.batchId, d.shiftId, d.quantityProduced, d.microStopMinutes);
 
     const entry = await prisma.productionDeclaration.create({
       data: {
         batchId: d.batchId,
         shiftId: d.shiftId,
-        date: declDate,
+        date: new Date(d.date),
         quantityProduced: d.quantityProduced,
         actualSpeed: d.actualSpeed,
         microStopMinutes: d.microStopMinutes,
@@ -75,7 +74,7 @@ export async function PUT(req: NextRequest) {
     const newQty = quantityProduced !== undefined ? Number(quantityProduced) : existing.quantityProduced;
     const newMicro = microStopMinutes !== undefined ? Number(microStopMinutes) : existing.microStopMinutes;
 
-    const trsFields = await computeTRS(existing.batchId, newShiftId, newDate, newQty, newMicro);
+    const trsFields = await computeTRS(existing.batchId, newShiftId, newQty, newMicro);
 
     const entry = await prisma.productionDeclaration.update({
       where: { id },

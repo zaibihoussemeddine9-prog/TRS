@@ -4,45 +4,24 @@ import { calcShiftTRS, getShiftDurationMinutes } from "./trs-calculations";
 const PAUSE_MINUTES = 30;
 
 /**
- * Get downtime minutes for a specific shift on a specific date.
- * Only counts CLOSED downtimes (with duration > 0).
+ * Get total downtime minutes for a batch (all closed downtimes).
+ * Distributed proportionally across declarations.
  */
-export async function getShiftDowntimeMinutes(
-  batchId: string,
-  shiftStartTime: string,
-  shiftEndTime: string,
-  date: Date
-): Promise<number> {
-  const [sh, sm] = shiftStartTime.split(":").map(Number);
-  const [eh, em] = shiftEndTime.split(":").map(Number);
-
-  const shiftStart = new Date(date);
-  shiftStart.setHours(sh, sm, 0, 0);
-
-  const shiftEnd = new Date(date);
-  shiftEnd.setHours(eh, em, 0, 0);
-
-  if (shiftEnd <= shiftStart) {
-    shiftEnd.setDate(shiftEnd.getDate() + 1);
-  }
-
-  const events = await prisma.downtimeEvent.findMany({
+async function getBatchDowntimeMinutes(batchId: string): Promise<number> {
+  const result = await prisma.downtimeEvent.aggregate({
     where: {
       batchId,
-      startTime: { gte: shiftStart, lt: shiftEnd },
       duration: { not: null, gt: 0 },
     },
-    select: { duration: true },
+    _sum: { duration: true },
   });
-
-  return events.reduce((sum, e) => sum + (e.duration || 0), 0);
+  return result._sum.duration || 0;
 }
 
 /** Compute TRS for a single production declaration */
 export async function computeTRS(
   batchId: string,
   shiftId: string,
-  declDate: Date,
   quantityProduced: number,
   microStopMinutes: number
 ) {
@@ -56,22 +35,26 @@ export async function computeTRS(
     include: { product: true },
   });
   const nominalSpeed = batch?.product?.nominalSpeed || 0;
+  const targetOEE = batch?.product?.targetOEE || 0;
 
-  const shiftDowntime = await getShiftDowntimeMinutes(
-    batchId,
-    shift.startTime,
-    shift.endTime,
-    declDate
-  );
+  // Get total batch downtime and distribute per declaration
+  const totalBatchDowntime = await getBatchDowntimeMinutes(batchId);
+  const declCount = await prisma.productionDeclaration.count({ where: { batchId } });
+  const downtimeForShift = declCount > 0 ? totalBatchDowntime / declCount : totalBatchDowntime;
 
   const trs = calcShiftTRS({
     shiftDurationMinutes: shiftDuration,
     pauseMinutes: PAUSE_MINUTES,
-    downtimeMinutes: shiftDowntime,
+    downtimeMinutes: downtimeForShift,
     microStopMinutes,
     quantityProduced,
     nominalSpeed,
   });
+
+  // Objectif shift = TRS cible × cadence nominale × temps planifié
+  const targetQuantity = targetOEE > 0 && nominalSpeed > 0
+    ? Math.round(targetOEE * nominalSpeed * trs.plannedMinutes)
+    : null;
 
   return {
     plannedMinutes: trs.plannedMinutes,
@@ -82,6 +65,7 @@ export async function computeTRS(
     performance: Math.round(trs.performance * 10000) / 10000,
     quality: Math.round(trs.quality * 10000) / 10000,
     oee: Math.round(trs.oee * 10000) / 10000,
+    targetQuantity,
   };
 }
 
@@ -99,7 +83,6 @@ export async function recalcBatchTRS(batchId: string): Promise<void> {
       const trsFields = await computeTRS(
         batchId,
         decl.shiftId,
-        decl.date,
         decl.quantityProduced,
         decl.microStopMinutes
       );
