@@ -668,6 +668,47 @@ export default function BatchDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Résultat du lot (visible uniquement quand clôturé) */}
+      {batch.status === "CLOSED" && (
+        <Card>
+          <CardHeader><h2 className="text-lg font-semibold">Résultat du lot</h2></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 text-sm">
+              <div>
+                <p className="text-slate-500">Taille lot théorique</p>
+                <p className="font-medium">{standardLotSize > 0 ? standardLotSize.toLocaleString("fr-FR") : "—"} unités</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Quantité produite</p>
+                <p className="font-medium">{totalProduced.toLocaleString("fr-FR")} unités</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Quantité rejetée</p>
+                <p className="font-medium text-red-600">{(batch.quantityRejected ?? 0).toLocaleString("fr-FR")} unités</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Rendement</p>
+                <p className={`font-bold text-lg ${(batch.yieldRate ?? 0) >= 1 ? "text-emerald-600" : (batch.yieldRate ?? 0) >= 0.9 ? "text-amber-600" : "text-red-600"}`}>
+                  {((batch.yieldRate ?? 0) * 100).toFixed(1)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">Taux de rejet</p>
+                <p className="font-bold text-lg text-red-600">
+                  {standardLotSize > 0 ? (Math.max(1 - (batch.yieldRate ?? 1), 0) * 100).toFixed(1) : "0.0"}%
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">Qualité TRS</p>
+                <p className={`font-bold text-lg ${(batch.yieldRate ?? 1) >= 0.95 ? "text-emerald-600" : (batch.yieldRate ?? 1) >= 0.90 ? "text-amber-600" : "text-red-600"}`}>
+                  {(Math.min(batch.yieldRate ?? 1, 1) * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Arrêts enregistrés */}
       <Card>
         <CardHeader>

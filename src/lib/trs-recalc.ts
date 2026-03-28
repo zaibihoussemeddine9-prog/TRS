@@ -37,6 +37,11 @@ export async function computeTRS(
   const nominalSpeed = batch?.product?.nominalSpeed || 0;
   const targetOEE = batch?.product?.targetOEE || 0;
 
+  // Quality from batch yield (only when lot is closed)
+  const batchQuality = (batch?.status === "CLOSED" && batch?.yieldRate != null)
+    ? batch.yieldRate
+    : undefined;
+
   // Get total batch downtime and distribute per declaration
   const totalBatchDowntime = await getBatchDowntimeMinutes(batchId);
   const declCount = await prisma.productionDeclaration.count({ where: { batchId } });
@@ -49,6 +54,7 @@ export async function computeTRS(
     microStopMinutes,
     quantityProduced,
     nominalSpeed,
+    quality: batchQuality,
   });
 
   // Objectif shift = TRS cible × cadence nominale × temps planifié

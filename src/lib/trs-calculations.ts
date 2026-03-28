@@ -4,12 +4,13 @@
  */
 
 export interface ShiftTRSInput {
-  shiftDurationMinutes: number; // durée brute du shift
-  pauseMinutes: number;         // pause fixe (30 min)
-  downtimeMinutes: number;      // arrêts déclarés (DowntimeEvent)
-  microStopMinutes: number;     // micro-arrêts
+  shiftDurationMinutes: number;
+  pauseMinutes: number;
+  downtimeMinutes: number;
+  microStopMinutes: number;
   quantityProduced: number;
-  nominalSpeed: number;         // cadence nominale du produit (u/min)
+  nominalSpeed: number;
+  quality?: number; // override quality (from batch close yield)
 }
 
 export interface TRSResult {
@@ -43,7 +44,7 @@ export function calcShiftTRS(input: ShiftTRSInput): TRSResult {
   const theoreticalQty = input.nominalSpeed > 0 ? input.nominalSpeed * runningMinutes : 0;
   const performance = theoreticalQty > 0 ? Math.min(input.quantityProduced / theoreticalQty, 1) : 0;
 
-  const quality = 1.0; // calculated at batch close
+  const quality = input.quality ?? 1.0;
 
   // Temps utile = temps théorique pour produire la quantité réelle
   const usefulMinutes = input.nominalSpeed > 0 ? input.quantityProduced / input.nominalSpeed : 0;

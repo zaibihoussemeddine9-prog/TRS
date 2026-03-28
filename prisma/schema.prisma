@@ -169,6 +169,8 @@ model Batch {
   orderNumber String?
   status      String    @default("OPEN")
   comment     String?
+  quantityRejected Float?
+  yieldRate        Float?
   createdById String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

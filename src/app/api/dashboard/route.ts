@@ -108,8 +108,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       global: { availability: globalAvail, performance: globalPerf, quality: 1, oee: globalOEE },
       lineKPIs, dailyTrend, downtimeByCause,
-      totalDowntime, totalRejects: 0, totalProduced,
-      rejectRate: 0,
+      totalDowntime, totalProduced,
+      totalRejects: batchStats.reduce((s, b) => s + ((b as any).quantityRejected || 0), 0),
+      rejectRate: totalProduced > 0
+        ? batchStats.reduce((s, b) => s + ((b as any).quantityRejected || 0), 0) / totalProduced
+        : 0,
       downtimeCount: batchStats.reduce((s, b) => s + b.downtimeEvents.length, 0),
       entryCount: batches.length,
     });

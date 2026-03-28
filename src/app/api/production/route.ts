@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { batchSchema } from "@/lib/validations";
 import { createAuditLog } from "@/lib/audit";
 import { resolveUserId } from "@/lib/resolve-user";
+import { recalcBatchTRS } from "@/lib/trs-recalc";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -141,8 +142,34 @@ export async function PUT(req: NextRequest) {
       include: { line: true, product: true },
     });
 
+    // Calculate reject/yield when closing the lot
+    if (status === "CLOSED") {
+      const agg = await prisma.productionDeclaration.aggregate({
+        where: { batchId: id },
+        _sum: { quantityProduced: true },
+      });
+      const totalProduced = agg._sum.quantityProduced || 0;
+      const standardLotSize = batch.product?.standardLotSize || 0;
+      const quantityRejected = Math.max(standardLotSize - totalProduced, 0);
+      const yieldRate = standardLotSize > 0 ? totalProduced / standardLotSize : 1.0;
+
+      await prisma.batch.update({
+        where: { id },
+        data: { quantityRejected, yieldRate },
+      });
+
+      // Recalculate TRS with quality = yieldRate
+      await recalcBatchTRS(id);
+    }
+
     createAuditLog({ userId, action: "UPDATE", entity: "Batch", entityId: batch.id });
-    return NextResponse.json(batch);
+
+    // Return fresh batch data
+    const updated = await prisma.batch.findUnique({
+      where: { id },
+      include: { line: true, product: true },
+    });
+    return NextResponse.json(updated);
   } catch (err) {
     console.error("[PUT /api/production]", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Erreur" }, { status: 500 });
