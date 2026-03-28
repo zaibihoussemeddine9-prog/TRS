@@ -79,12 +79,12 @@ export default function AnalysisPage() {
         <p className="text-sm text-slate-500">Analyse des causes de pertes et arrêts</p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="w-48">
+      <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+        <div className="w-full sm:w-48">
           <Select options={lines} placeholder="Toutes les lignes" value={filterLine} onChange={(e) => setFilterLine(e.target.value)} />
         </div>
-        <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-40" />
-        <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-40" />
+        <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full sm:w-40" />
+        <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full sm:w-40" />
         <div className="flex items-center rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
           Total : {Math.round(totalDowntime)} min ({downtimes.length} arrêts)
         </div>

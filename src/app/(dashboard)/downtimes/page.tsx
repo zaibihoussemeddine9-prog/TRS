@@ -100,7 +100,7 @@ export default function DowntimesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Suivi des Arrêts</h1>
           <p className="text-sm text-slate-500">Gestion et traçabilité des arrêts de ligne</p>
@@ -110,12 +110,12 @@ export default function DowntimesPage() {
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="w-48">
+      <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+        <div className="w-full sm:w-48">
           <Select options={lines} placeholder="Toutes les lignes" value={filterLine} onChange={(e) => setFilterLine(e.target.value)} />
         </div>
-        <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-40" />
-        <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-40" />
+        <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full sm:w-40" />
+        <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full sm:w-40" />
       </div>
 
       {loading ? (

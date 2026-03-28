@@ -70,12 +70,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard Global</h1>
           <p className="text-sm text-slate-500">Vue d'ensemble de la performance des lignes</p>
         </div>
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select
             options={periodOptions}
             value={period}
@@ -161,12 +161,12 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-3">
               {data.lineKPIs.map((line) => (
-                <div key={line.lineId} className="flex items-center justify-between rounded-lg border border-slate-100 p-3">
+                <div key={line.lineId} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-slate-100 p-3">
                   <div>
                     <p className="font-medium text-slate-900">{line.lineName}</p>
                     <p className="text-xs text-slate-500">{line.entryCount} entrées</p>
                   </div>
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
                     <div className="text-center">
                       <p className="text-xs text-slate-500">Dispo</p>
                       <p className="font-semibold">{formatPercent(line.availability)}</p>

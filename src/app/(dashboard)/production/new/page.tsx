@@ -90,7 +90,7 @@ export default function NewProductionPage() {
       </div>
 
       {/* Live OEE preview */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Disponibilité", value: previewOEE.availability },
           { label: "Performance", value: previewOEE.performance },
@@ -99,7 +99,7 @@ export default function NewProductionPage() {
         ].map((kpi) => (
           <div key={kpi.label} className="rounded-lg border bg-white p-3 text-center">
             <p className="text-xs text-slate-500">{kpi.label}</p>
-            <p className="text-xl font-bold text-blue-600">{formatPercent(kpi.value)}</p>
+            <p className="text-lg sm:text-xl font-bold text-blue-600">{formatPercent(kpi.value)}</p>
           </div>
         ))}
       </div>
@@ -147,7 +147,6 @@ export default function NewProductionPage() {
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               <Input id="theoreticalSpeed" type="number" step="0.1" label="Vitesse théorique (u/min)" error={errors.theoreticalSpeed?.message} {...register("theoreticalSpeed")} />
               <Input id="actualSpeed" type="number" step="0.1" label="Vitesse réelle (u/min)" error={errors.actualSpeed?.message} {...register("actualSpeed")} />
-              <div />
               <Input id="quantityProduced" type="number" step="1" label="Quantité produite" error={errors.quantityProduced?.message} {...register("quantityProduced")} />
               <Input id="quantityConform" type="number" step="1" label="Quantité conforme" error={errors.quantityConform?.message} {...register("quantityConform")} />
               <Input id="quantityRejected" type="number" step="1" label="Quantité rejetée" {...register("quantityRejected")} />

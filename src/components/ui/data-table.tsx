@@ -66,7 +66,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       {searchable && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

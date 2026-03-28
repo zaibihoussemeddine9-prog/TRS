@@ -115,9 +115,9 @@ export default function LineDashboardPage() {
               {Array.from(shiftMap.entries()).map(([shift, shiftEntries]) => {
                 const shiftOee = calcAggregateOEE(shiftEntries);
                 return (
-                  <div key={shift} className="flex items-center justify-between rounded-lg border p-3">
+                  <div key={shift} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3">
                     <span className="font-medium">{shift}</span>
-                    <div className="flex gap-3 text-sm">
+                    <div className="flex flex-wrap gap-2 sm:gap-3 text-sm">
                       <span>D: {formatPercent(shiftOee.availability)}</span>
                       <span>P: {formatPercent(shiftOee.performance)}</span>
                       <span>Q: {formatPercent(shiftOee.quality)}</span>
@@ -136,7 +136,7 @@ export default function LineDashboardPage() {
           <CardContent>
             <div className="space-y-2">
               {downtimes.slice(0, 8).map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between rounded border p-2 text-sm">
+                <div key={d.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded border p-2 text-sm">
                   <div>
                     <p className="font-medium">{d.cause?.name}</p>
                     <p className="text-xs text-slate-500">{new Date(d.startTime).toLocaleString("fr-FR")}</p>

@@ -88,7 +88,7 @@ export default function ActionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Plans d'Actions</h1>
           <p className="text-sm text-slate-500">Suivi des actions correctives et préventives</p>
@@ -98,8 +98,8 @@ export default function ActionsPage() {
         </Link>
       </div>
 
-      <div className="flex gap-3">
-        <div className="w-48">
+      <div className="grid grid-cols-1 gap-3 sm:flex">
+        <div className="w-full sm:w-48">
           <Select options={statusOptions} placeholder="Tous les statuts" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} />
         </div>
       </div>
