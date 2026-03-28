@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, CheckCircle } from "lucide-react";
 import { formatPercent } from "@/lib/trs-calculations";
 
 interface LineData {
@@ -65,25 +65,34 @@ export default function AdminLinesPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const loadLines = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/lines?all=true");
-    setLines(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetch("/api/lines?all=true");
+      if (!res.ok) throw new Error("Erreur chargement");
+      setLines(await res.json());
+    } catch {
+      setLines([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     loadLines();
     fetch("/api/workshops")
       .then((r) => r.json())
-      .then(setWorkshops);
+      .then(setWorkshops)
+      .catch(() => setWorkshops([]));
   }, [loadLines]);
 
   function openCreate() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setError("");
+    setSuccess("");
     setShowModal(true);
   }
 
@@ -97,21 +106,45 @@ export default function AdminLinesPage() {
       defaultSpeed: line.defaultSpeed?.toString() || "",
       formatChangeTime: line.formatChangeTime?.toString() || "",
       cleaningTime: line.cleaningTime?.toString() || "",
-      targetOEE: line.targetOEE ? (line.targetOEE * 100).toString() : "",
+      targetOEE: line.targetOEE ? (line.targetOEE * 100).toFixed(0) : "",
       active: line.active,
     });
     setError("");
+    setSuccess("");
     setShowModal(true);
   }
 
   async function handleSubmit() {
-    if (!form.name.trim() || !form.code.trim() || !form.workshopId) {
-      setError("Nom, code et atelier sont obligatoires");
+    // Validation frontend
+    if (!form.name.trim()) {
+      setError("Le nom de la ligne est obligatoire");
       return;
+    }
+    if (!form.code.trim()) {
+      setError("Le code de la ligne est obligatoire");
+      return;
+    }
+    if (!form.workshopId) {
+      setError("L'atelier est obligatoire");
+      return;
+    }
+
+    // Validate numeric fields
+    if (form.defaultSpeed && (isNaN(Number(form.defaultSpeed)) || Number(form.defaultSpeed) < 0)) {
+      setError("La cadence nominale doit être un nombre positif");
+      return;
+    }
+    if (form.targetOEE) {
+      const oeeVal = Number(form.targetOEE);
+      if (isNaN(oeeVal) || oeeVal < 0 || oeeVal > 100) {
+        setError("Le TRS cible doit être entre 0 et 100%");
+        return;
+      }
     }
 
     setSubmitting(true);
     setError("");
+    setSuccess("");
 
     const payload = {
       ...(editingId && { id: editingId }),
@@ -119,29 +152,73 @@ export default function AdminLinesPage() {
       code: form.code.trim().toUpperCase(),
       workshopId: form.workshopId,
       lineType: form.lineType || null,
-      defaultSpeed: form.defaultSpeed || null,
-      formatChangeTime: form.formatChangeTime || null,
-      cleaningTime: form.cleaningTime || null,
-      targetOEE: form.targetOEE ? (parseFloat(form.targetOEE) / 100).toString() : null,
+      defaultSpeed: form.defaultSpeed ? Number(form.defaultSpeed) : null,
+      formatChangeTime: form.formatChangeTime ? Number(form.formatChangeTime) : null,
+      cleaningTime: form.cleaningTime ? Number(form.cleaningTime) : null,
+      targetOEE: form.targetOEE ? Number(form.targetOEE) / 100 : null,
       active: form.active,
-      userId: session?.user?.id,
+      userId: session?.user?.id || null,
     };
 
-    const res = await fetch("/api/lines", {
-      method: editingId ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    console.log("[AdminLines] envoi payload:", payload);
 
-    if (res.ok) {
+    // Timeout 15s to prevent infinite spinner
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const res = await fetch("/api/lines", {
+        method: editingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      console.log("[AdminLines] réponse status:", res.status);
+
+      // Parse response safely
+      let data: Record<string, unknown>;
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        console.error("[AdminLines] réponse non-JSON:", text.substring(0, 500));
+        throw new Error("Le serveur a renvoyé une réponse invalide");
+      }
+
+      console.log("[AdminLines] réponse data:", data);
+
+      if (!res.ok) {
+        setError((data.error as string) || `Erreur ${res.status} lors de l'enregistrement`);
+        return;
+      }
+
+      // Success
+      const msg = editingId
+        ? `Ligne "${payload.name}" modifiée avec succès`
+        : `Ligne "${payload.name}" créée avec succès`;
+      setSuccess(msg);
       setShowModal(false);
-      loadLines();
-    } else {
-      const data = await res.json();
-      setError(data.error || "Erreur lors de l'enregistrement");
-    }
+      await loadLines();
 
-    setSubmitting(false);
+      // Show success toast briefly then clear
+      setTimeout(() => setSuccess(""), 5000);
+    } catch (err) {
+      clearTimeout(timeout);
+      console.error("[AdminLines] erreur fetch:", err);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Délai d'attente dépassé — vérifiez votre connexion et réessayez");
+      } else if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError("Impossible de contacter le serveur — vérifiez votre connexion");
+      } else {
+        setError(err instanceof Error ? err.message : "Erreur inattendue");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function updateField(field: string, value: string | boolean) {
@@ -269,6 +346,14 @@ export default function AdminLinesPage() {
         </Button>
       </div>
 
+      {/* Success banner */}
+      {success && (
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
+          <CheckCircle className="h-4 w-4 flex-shrink-0" />
+          {success}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex h-32 items-center justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
@@ -290,13 +375,15 @@ export default function AdminLinesPage() {
       {/* Modal création / modification */}
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { if (!submitting) setShowModal(false); }}
         title={editingId ? "Modifier la ligne" : "Créer une ligne"}
         className="max-w-2xl"
       >
         <div className="space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -305,12 +392,14 @@ export default function AdminLinesPage() {
               placeholder="ex: BL01"
               value={form.code}
               onChange={(e) => updateField("code", e.target.value)}
+              disabled={submitting}
             />
             <Input
               label="Nom ligne *"
               placeholder="ex: Ligne Blistéreuse 1"
               value={form.name}
               onChange={(e) => updateField("name", e.target.value)}
+              disabled={submitting}
             />
           </div>
 
@@ -324,6 +413,7 @@ export default function AdminLinesPage() {
               placeholder="Sélectionner un atelier"
               value={form.workshopId}
               onChange={(e) => updateField("workshopId", e.target.value)}
+              disabled={submitting}
             />
             <Select
               label="Type de ligne"
@@ -331,6 +421,7 @@ export default function AdminLinesPage() {
               placeholder="Sélectionner un type"
               value={form.lineType}
               onChange={(e) => updateField("lineType", e.target.value)}
+              disabled={submitting}
             />
           </div>
 
@@ -343,6 +434,7 @@ export default function AdminLinesPage() {
               placeholder="ex: 120"
               value={form.defaultSpeed}
               onChange={(e) => updateField("defaultSpeed", e.target.value)}
+              disabled={submitting}
             />
             <Input
               label="Temps chgt format (min)"
@@ -352,6 +444,7 @@ export default function AdminLinesPage() {
               placeholder="ex: 30"
               value={form.formatChangeTime}
               onChange={(e) => updateField("formatChangeTime", e.target.value)}
+              disabled={submitting}
             />
             <Input
               label="Temps nettoyage (min)"
@@ -361,6 +454,7 @@ export default function AdminLinesPage() {
               placeholder="ex: 20"
               value={form.cleaningTime}
               onChange={(e) => updateField("cleaningTime", e.target.value)}
+              disabled={submitting}
             />
           </div>
 
@@ -374,6 +468,7 @@ export default function AdminLinesPage() {
               placeholder="ex: 85"
               value={form.targetOEE}
               onChange={(e) => updateField("targetOEE", e.target.value)}
+              disabled={submitting}
             />
             <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700">Statut</label>
@@ -381,7 +476,8 @@ export default function AdminLinesPage() {
                 <button
                   type="button"
                   onClick={() => updateField("active", true)}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  disabled={submitting}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                     form.active
                       ? "bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500"
                       : "bg-slate-100 text-slate-500"
@@ -392,7 +488,8 @@ export default function AdminLinesPage() {
                 <button
                   type="button"
                   onClick={() => updateField("active", false)}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  disabled={submitting}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                     !form.active
                       ? "bg-red-100 text-red-700 ring-2 ring-red-500"
                       : "bg-slate-100 text-slate-500"
@@ -405,7 +502,7 @@ export default function AdminLinesPage() {
           </div>
 
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-            <Button variant="outline" onClick={() => setShowModal(false)}>
+            <Button variant="outline" onClick={() => setShowModal(false)} disabled={submitting}>
               Annuler
             </Button>
             <Button onClick={handleSubmit} loading={submitting}>
