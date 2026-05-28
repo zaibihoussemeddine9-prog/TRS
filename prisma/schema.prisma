@@ -7,283 +7,76 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USERS
-// ============================================
-
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  name       String
-  firstName  String?
-  lastName   String?
-  department String?
-  position   String?
-  password   String
-  role       String   @default("OPERATEUR")
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  batches              Batch[]              @relation("BatchCreatedBy")
-  downtimeEvents       DowntimeEvent[]      @relation("DowntimeCreatedBy")
-  productionDeclarations ProductionDeclaration[] @relation("ProdDeclCreatedBy")
-  auditLogs            AuditLog[]
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("ADMIN")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([email])
 }
 
-// ============================================
-// LINE
-// ============================================
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  duration    Int
+  price       Float
+  category    String   @default("STANDARD")
+  active      Boolean  @default(true)
+  color       String   @default("#0ea5e9")
+  icon        String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-model Line {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  lineType  String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  batches      Batch[]
-  productLines ProductLine[]
-
-  @@index([code])
+  bookings Booking[]
 }
 
-// ============================================
-// PRODUCT
-// ============================================
+model Booking {
+  id            String   @id @default(cuid())
+  reference     String   @unique
+  serviceId     String
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  carBrand      String?
+  carModel      String?
+  carPlate      String?
+  carColor      String?
+  date          DateTime @db.Date
+  timeSlot      String
+  status        String   @default("PENDING")
+  notes         String?  @db.Text
+  totalPrice    Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-model Product {
-  id               String   @id @default(cuid())
-  name             String
-  code             String   @unique
-  family           String?
-  form             String?
-  laboratory       String?
-  unitsPerPack     Int?
-  nominalSpeed     Float?
-  targetOEE        Float?
-  targetRejectRate Float?
-  standardLotSize  Float?
-  formatChangeTime Float?
-  cleaningTime     Float?
-  comments         String?  @db.Text
-  active           Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  service Service @relation(fields: [serviceId], references: [id])
 
-  batches      Batch[]
-  productLines ProductLine[]
-
-  @@index([code])
+  @@index([date])
+  @@index([serviceId])
+  @@index([status])
+  @@index([reference])
+  @@index([customerPhone])
 }
 
-// ============================================
-// PRODUCT-LINE compatibility
-// ============================================
-
-model ProductLine {
-  id        String   @id @default(cuid())
-  productId String
-  lineId    String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  line    Line    @relation(fields: [lineId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, lineId])
-  @@index([productId])
-  @@index([lineId])
-}
-
-// ============================================
-// SHIFT
-// ============================================
-
-model Shift {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String   @unique
-  startTime String
-  endTime   String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  productionDeclarations ProductionDeclaration[]
-
-  @@index([code])
-}
-
-// ============================================
-// DOWNTIME HIERARCHY
-// ============================================
-
-model DowntimeCategory {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  color     String   @default("#3b82f6")
-  sortOrder Int      @default(0)
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  subCategories DowntimeSubCategory[]
-
-  @@index([code])
-}
-
-model DowntimeSubCategory {
-  id         String   @id @default(cuid())
-  name       String
-  code       String   @unique
-  categoryId String
-  sortOrder  Int      @default(0)
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  category       DowntimeCategory @relation(fields: [categoryId], references: [id])
-  downtimeEvents DowntimeEvent[]
-
-  @@index([categoryId])
-  @@index([code])
-}
-
-// ============================================
-// BATCH (lot de production) — entité centrale
-// ============================================
-
-model Batch {
-  id          String    @id @default(cuid())
-  lot         String
-  lineId      String
-  productId   String
-  startTime   DateTime
-  endTime     DateTime?
-  orderNumber String?
-  status      String    @default("OPEN")
-  comment     String?
-  quantityRejected Float?
-  yieldRate        Float?
-  createdById String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  line                   Line                   @relation(fields: [lineId], references: [id])
-  product                Product                @relation(fields: [productId], references: [id])
-  createdBy              User                   @relation("BatchCreatedBy", fields: [createdById], references: [id])
-  downtimeEvents         DowntimeEvent[]
-  productionDeclarations ProductionDeclaration[]
-
-  @@index([lineId])
-  @@index([productId])
-  @@index([startTime])
-  @@index([lot])
-}
-
-// ============================================
-// DOWNTIME EVENT (arrêt sur un lot)
-// ============================================
-
-model DowntimeEvent {
-  id               String    @id @default(cuid())
-  batchId          String
-  subCategoryId    String?
-  startTime        DateTime
-  endTime          DateTime?
-  duration         Float?
-  description      String?
-  createdById      String
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  batch        Batch                @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  subCategory  DowntimeSubCategory? @relation(fields: [subCategoryId], references: [id])
-  createdBy    User                 @relation("DowntimeCreatedBy", fields: [createdById], references: [id])
-
-  @@index([batchId])
-  @@index([subCategoryId])
-}
-
-// ============================================
-// PRODUCTION DECLARATION (déclaration shift)
-// ============================================
-
-model ProductionDeclaration {
-  id               String   @id @default(cuid())
-  batchId          String
-  shiftId          String
-  date             DateTime @db.Date
-  quantityProduced Float    @default(0)
-  actualSpeed      Float    @default(0)
-  microStopMinutes Float    @default(0)
-  comment          String?
-
-  // Calculated per shift
-  plannedMinutes   Float?
-  runningMinutes   Float?
-  usefulMinutes    Float?
-  unjustifiedMinutes Float?
-  targetQuantity   Float?
-  availability     Float?
-  performance      Float?
-  quality          Float?
-  oee              Float?
-
-  createdById      String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  batch     Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  shift     Shift @relation(fields: [shiftId], references: [id])
-  createdBy User  @relation("ProdDeclCreatedBy", fields: [createdById], references: [id])
-
-  @@index([batchId])
-  @@index([shiftId])
-  @@unique([batchId, shiftId, date])
-}
-
-// ============================================
-// AUDIT LOG
-// ============================================
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  action    String
-  entity    String
-  entityId  String
-  oldValue  String?  @db.Text
-  newValue  String?  @db.Text
-  createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id])
-
-  @@index([entity, entityId])
-  @@index([userId])
-  @@index([createdAt])
-}
-
-// ============================================
-// REFERENCE LISTS (Familles, Formes, Laboratoires)
-// ============================================
-
-model ReferenceList {
-  id        String   @id @default(cuid())
-  type      String
-  value     String
-  label     String
-  sortOrder Int      @default(0)
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([type, value])
-  @@index([type])
+model StationSettings {
+  id             String   @id @default("settings")
+  name           String   @default("AutoSplash Station de Lavage")
+  address        String?
+  phone          String?
+  email          String?
+  description    String?  @db.Text
+  openingTime    String   @default("08:00")
+  closingTime    String   @default("19:00")
+  slotDuration   Int      @default(30)
+  maxCarsPerSlot Int      @default(3)
+  workingDays    String   @default("1,2,3,4,5,6")
+  currency       String   @default("TND")
+  updatedAt      DateTime @updatedAt
 }

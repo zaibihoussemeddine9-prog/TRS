@@ -50,19 +50,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  pages: { signIn: "/login" },
+  pages: { signIn: "/admin/login" },
 };
-
-export function hasAccess(role: string, module: string): boolean {
-  const perms: Record<string, string[]> = {
-    dashboard: ["ADMIN", "RESPONSABLE", "OPERATEUR", "LECTURE_SEULE"],
-    production: ["ADMIN", "RESPONSABLE", "OPERATEUR"],
-    downtimes: ["ADMIN", "RESPONSABLE", "OPERATEUR"],
-    admin: ["ADMIN"],
-  };
-  return (perms[module] || []).includes(role);
-}
-
-export function canEdit(role: string): boolean {
-  return role !== "LECTURE_SEULE";
-}
