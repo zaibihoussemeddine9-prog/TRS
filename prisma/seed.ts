@@ -3,131 +3,102 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const scooterModels = [
+  "Xiaomi Pro 2",
+  "Segway Ninebot",
+  "Niu MQi+",
+  "Kugoo G2 Pro",
+  "Kaabo Wolf Warrior",
+];
+
+const algiersCentre = { lat: 36.7538, lng: 3.0588 };
+
+function randomAround(base: number, spread: number) {
+  return base + (Math.random() - 0.5) * spread;
+}
+
+const statuses = ["AVAILABLE", "AVAILABLE", "AVAILABLE", "AVAILABLE", "RENTED", "RENTED", "MAINTENANCE"];
+
 async function main() {
-  console.log("Seeding...");
+  console.log("🌱 Seeding database...");
 
-  // ===== USER: create admin only if no users exist =====
-  const userCount = await prisma.user.count();
-  if (userCount === 0) {
-    const pw = await bcrypt.hash("admin123", 12);
-    await prisma.user.create({
-      data: { email: "admin@pharma.com", name: "Admin Pharma", firstName: "Admin", lastName: "Pharma", department: "Direction", position: "Administrateur", password: pw, role: "ADMIN" },
+  // Create admin user
+  const adminPassword = await bcrypt.hash("Admin123!", 10);
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@scoot.dz" },
+    update: {},
+    create: {
+      email: "admin@scoot.dz",
+      name: "Admin Scoot",
+      phone: "+213 555 000 001",
+      password: adminPassword,
+      role: "ADMIN",
+      active: true,
+    },
+  });
+  console.log("✅ Admin user created:", admin.email);
+
+  // Create rider user
+  const riderPassword = await bcrypt.hash("Rider123!", 10);
+  const rider = await prisma.user.upsert({
+    where: { email: "rider@scoot.dz" },
+    update: {},
+    create: {
+      email: "rider@scoot.dz",
+      name: "Karim Bensalem",
+      phone: "+213 555 000 002",
+      password: riderPassword,
+      role: "RIDER",
+      active: true,
+    },
+  });
+  console.log("✅ Rider user created:", rider.email);
+
+  // Create 15 scooters around Algiers
+  const scooterData = Array.from({ length: 15 }, (_, i) => {
+    const status = statuses[i % statuses.length];
+    const battery = Math.floor(Math.random() * 60) + 40; // 40-100%
+    const model = scooterModels[i % scooterModels.length];
+    const lat = randomAround(algiersCentre.lat, 0.04);
+    const lng = randomAround(algiersCentre.lng, 0.04);
+
+    return {
+      name: `Scooter ${String(i + 1).padStart(2, "0")}`,
+      code: `ALG${String(i + 1).padStart(3, "0")}`,
+      status,
+      battery,
+      lat,
+      lng,
+      model,
+      pricePerMin: 2.5,
+      maxSpeed: 25,
+      color: "#10b981",
+      lastPing: new Date(),
+      address: `Alger, quartier ${i + 1}`,
+    };
+  });
+
+  let scooterCount = 0;
+  for (const data of scooterData) {
+    await prisma.scooter.upsert({
+      where: { code: data.code },
+      update: {},
+      create: data,
     });
-    console.log("  Admin créé");
+    scooterCount++;
   }
+  console.log(`✅ ${scooterCount} scooters created around Algiers`);
 
-  // ===== LINE: create if none exist =====
-  const lineCount = await prisma.line.count();
-  if (lineCount === 0) {
-    await prisma.line.create({
-      data: { name: "Ligne 1", code: "L1", lineType: "blistereuse" },
-    });
-    console.log("  Ligne 1 créée");
-  }
-
-  // ===== PRODUCTS: create if none exist =====
-  const productCount = await prisma.product.count();
-  if (productCount === 0) {
-    const line = await prisma.line.findFirst();
-    const [prodA, prodB, prodC] = await Promise.all([
-      prisma.product.create({ data: { name: "Produit A 500mg", code: "PROD-A", family: "Antibiotiques", form: "Comprimé", nominalSpeed: 120, targetOEE: 0.85, unitsPerPack: 30 } }),
-      prisma.product.create({ data: { name: "Produit B 1000mg", code: "PROD-B", family: "Antalgiques", form: "Gélule", nominalSpeed: 150, targetOEE: 0.88, unitsPerPack: 20 } }),
-      prisma.product.create({ data: { name: "Produit C 150ml", code: "PROD-C", family: "Sirops", form: "Sirop", nominalSpeed: 60, targetOEE: 0.78, unitsPerPack: 1 } }),
-    ]);
-    if (line) {
-      await prisma.productLine.createMany({
-        data: [
-          { productId: prodA.id, lineId: line.id },
-          { productId: prodB.id, lineId: line.id },
-          { productId: prodC.id, lineId: line.id },
-        ],
-      });
-    }
-    console.log("  3 produits créés");
-  }
-
-  // ===== SHIFTS: upsert (always ensure all 4 exist) =====
-  const shiftData = [
-    { name: "Matin", code: "SH-M", startTime: "06:00", endTime: "14:00" },
-    { name: "Après-midi", code: "SH-A", startTime: "14:00", endTime: "22:00" },
-    { name: "Nuit", code: "SH-N", startTime: "22:00", endTime: "06:00" },
-    { name: "Journée", code: "SH-J", startTime: "08:00", endTime: "17:00" },
-  ];
-  for (const s of shiftData) {
-    await prisma.shift.upsert({
-      where: { code: s.code },
-      update: { name: s.name, startTime: s.startTime, endTime: s.endTime },
-      create: s,
-    });
-  }
-  console.log("  4 shifts OK");
-
-  // ===== REFERENCE LISTS: upsert =====
-  const refData = [
-    { type: "FAMILY", value: "Antibiotiques", label: "Antibiotiques" },
-    { type: "FAMILY", value: "Antalgiques", label: "Antalgiques" },
-    { type: "FAMILY", value: "Anti-inflammatoires", label: "Anti-inflammatoires" },
-    { type: "FAMILY", value: "Gastro", label: "Gastro-entérologie" },
-    { type: "FAMILY", value: "Sirops", label: "Sirops" },
-    { type: "FAMILY", value: "Dermatologie", label: "Dermatologie" },
-    { type: "FAMILY", value: "Cardiovasculaire", label: "Cardiovasculaire" },
-    { type: "FAMILY", value: "Autre", label: "Autre" },
-    { type: "FORM", value: "Comprimé", label: "Comprimé" },
-    { type: "FORM", value: "Gélule", label: "Gélule" },
-    { type: "FORM", value: "Sirop", label: "Sirop" },
-    { type: "FORM", value: "Pommade", label: "Pommade" },
-    { type: "FORM", value: "Crème", label: "Crème" },
-    { type: "FORM", value: "Solution", label: "Solution" },
-    { type: "FORM", value: "Injectable", label: "Injectable" },
-    { type: "FORM", value: "Autre", label: "Autre" },
-  ];
-  for (let i = 0; i < refData.length; i++) {
-    const r = refData[i];
-    await prisma.referenceList.upsert({
-      where: { type_value: { type: r.type, value: r.value } },
-      update: { label: r.label },
-      create: { ...r, sortOrder: i + 1 },
-    });
-  }
-  console.log("  Référentiels OK");
-
-  // ===== DOWNTIME CATEGORIES: upsert =====
-  const categories = [
-    { name: "Technique", code: "TECH", color: "#ef4444", sortOrder: 1 },
-    { name: "Organisationnel", code: "ORGA", color: "#f59e0b", sortOrder: 2 },
-    { name: "Qualité", code: "QUAL", color: "#8b5cf6", sortOrder: 3 },
-  ];
-  for (const c of categories) {
-    await prisma.downtimeCategory.upsert({
-      where: { code: c.code },
-      update: { name: c.name, color: c.color, sortOrder: c.sortOrder },
-      create: c,
-    });
-  }
-
-  const catTech = await prisma.downtimeCategory.findUnique({ where: { code: "TECH" } });
-  const catOrga = await prisma.downtimeCategory.findUnique({ where: { code: "ORGA" } });
-  const catQual = await prisma.downtimeCategory.findUnique({ where: { code: "QUAL" } });
-
-  const subCategories = [
-    { name: "Panne mécanique", code: "TECH-MECA", categoryId: catTech!.id, sortOrder: 1 },
-    { name: "Panne électrique", code: "TECH-ELEC", categoryId: catTech!.id, sortOrder: 2 },
-    { name: "Changement", code: "ORGA-CHG", categoryId: catOrga!.id, sortOrder: 1 },
-    { name: "Attente", code: "ORGA-ATT", categoryId: catOrga!.id, sortOrder: 2 },
-    { name: "Contrôle qualité", code: "QUAL-CTRL", categoryId: catQual!.id, sortOrder: 1 },
-  ];
-  for (const s of subCategories) {
-    await prisma.downtimeSubCategory.upsert({
-      where: { code: s.code },
-      update: { name: s.name, categoryId: s.categoryId, sortOrder: s.sortOrder },
-      create: s,
-    });
-  }
-  console.log("  3 catégories + 5 sous-catégories OK");
-
-  console.log("Seed terminé — admin@pharma.com / admin123");
+  console.log("🎉 Seeding complete!");
+  console.log("   Admin: admin@scoot.dz / Admin123!");
+  console.log("   Rider: rider@scoot.dz / Rider123!");
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(() => prisma.$disconnect());
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
