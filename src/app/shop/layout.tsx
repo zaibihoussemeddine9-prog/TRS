@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { ShopNavbar } from "@/components/shop/ShopNavbar"
 
 export const metadata: Metadata = {
-  title: "TikShopDZ — Achat en ligne Algérie",
-  description: "Commandez les produits tendances TikTok. Livraison dans les 48 wilayas d'Algérie. Paiement à la livraison.",
+  title: "PetShopDZ 🐾 — Animalerie en ligne Algérie",
+  description: "Nourriture, jouets et accessoires pour chats et chiens. Livraison dans les 48 wilayas d'Algérie. Paiement à la livraison.",
 }
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +14,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       <footer className="border-t border-[#1e1e1e] mt-16 py-8 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-600 text-sm">
-            © 2025 TikShopDZ · Livraison dans les 48 wilayas · Paiement à la livraison
+            🐾 PetShopDZ · Animalerie en ligne · Livraison 48 wilayas · Paiement à la livraison
           </p>
           <p className="text-[#ff2d55] text-xs mt-1">🇩🇿 Fait avec ❤️ pour l&apos;Algérie</p>
         </div>

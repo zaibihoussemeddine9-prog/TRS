@@ -8,11 +8,11 @@ export function ShopNavbar() {
     <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-[#1e1e1e]">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <Link href="/shop" className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 bg-gradient-to-br from-[#ff2d55] to-[#ff6b35] rounded-lg flex items-center justify-center">
-            <span className="text-white font-black text-sm">TK</span>
+          <div className="w-8 h-8 bg-gradient-to-br from-[#ff2d55] to-[#ff6b35] rounded-lg flex items-center justify-center text-base">
+            🐾
           </div>
           <span className="text-white font-bold text-lg tracking-tight">
-            TikShop<span className="text-[#ff2d55]">DZ</span>
+            PetShop<span className="text-[#ff2d55]">DZ</span>
           </span>
         </Link>
 
@@ -21,7 +21,7 @@ export function ShopNavbar() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Rechercher un produit..."
+              placeholder="Rechercher pour chat ou chien..."
               className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-full pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff2d55] transition-colors"
             />
           </div>
