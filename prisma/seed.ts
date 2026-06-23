@@ -4,130 +4,155 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Seeding...");
+  const hashedPw = await bcrypt.hash("admin123", 10);
+  await prisma.admin.upsert({
+    where: { email: "admin@tiktokshop.dz" },
+    update: {},
+    create: { email: "admin@tiktokshop.dz", password: hashedPw, name: "Admin" },
+  });
 
-  // ===== USER: create admin only if no users exist =====
-  const userCount = await prisma.user.count();
-  if (userCount === 0) {
-    const pw = await bcrypt.hash("admin123", 12);
-    await prisma.user.create({
-      data: { email: "admin@pharma.com", name: "Admin Pharma", firstName: "Admin", lastName: "Pharma", department: "Direction", position: "Administrateur", password: pw, role: "ADMIN" },
-    });
-    console.log("  Admin créé");
-  }
-
-  // ===== LINE: create if none exist =====
-  const lineCount = await prisma.line.count();
-  if (lineCount === 0) {
-    await prisma.line.create({
-      data: { name: "Ligne 1", code: "L1", lineType: "blistereuse" },
-    });
-    console.log("  Ligne 1 créée");
-  }
-
-  // ===== PRODUCTS: create if none exist =====
-  const productCount = await prisma.product.count();
-  if (productCount === 0) {
-    const line = await prisma.line.findFirst();
-    const [prodA, prodB, prodC] = await Promise.all([
-      prisma.product.create({ data: { name: "Produit A 500mg", code: "PROD-A", family: "Antibiotiques", form: "Comprimé", nominalSpeed: 120, targetOEE: 0.85, unitsPerPack: 30 } }),
-      prisma.product.create({ data: { name: "Produit B 1000mg", code: "PROD-B", family: "Antalgiques", form: "Gélule", nominalSpeed: 150, targetOEE: 0.88, unitsPerPack: 20 } }),
-      prisma.product.create({ data: { name: "Produit C 150ml", code: "PROD-C", family: "Sirops", form: "Sirop", nominalSpeed: 60, targetOEE: 0.78, unitsPerPack: 1 } }),
-    ]);
-    if (line) {
-      await prisma.productLine.createMany({
-        data: [
-          { productId: prodA.id, lineId: line.id },
-          { productId: prodB.id, lineId: line.id },
-          { productId: prodC.id, lineId: line.id },
-        ],
-      });
-    }
-    console.log("  3 produits créés");
-  }
-
-  // ===== SHIFTS: upsert (always ensure all 4 exist) =====
-  const shiftData = [
-    { name: "Matin", code: "SH-M", startTime: "06:00", endTime: "14:00" },
-    { name: "Après-midi", code: "SH-A", startTime: "14:00", endTime: "22:00" },
-    { name: "Nuit", code: "SH-N", startTime: "22:00", endTime: "06:00" },
-    { name: "Journée", code: "SH-J", startTime: "08:00", endTime: "17:00" },
+  const cats = [
+    { name: "Mode & Vêtements", nameAr: "الموضة والملابس", slug: "mode-vetements", sortOrder: 1 },
+    { name: "Beauté & Cosmétiques", nameAr: "الجمال ومستحضرات التجميل", slug: "beaute-cosmetiques", sortOrder: 2 },
+    { name: "Électronique", nameAr: "الإلكترونيات", slug: "electronique", sortOrder: 3 },
+    { name: "Maison & Déco", nameAr: "المنزل والديكور", slug: "maison-deco", sortOrder: 4 },
+    { name: "Sport & Fitness", nameAr: "الرياضة واللياقة", slug: "sport-fitness", sortOrder: 5 },
+    { name: "Enfants", nameAr: "الأطفال", slug: "enfants", sortOrder: 6 },
   ];
-  for (const s of shiftData) {
-    await prisma.shift.upsert({
-      where: { code: s.code },
-      update: { name: s.name, startTime: s.startTime, endTime: s.endTime },
+
+  for (const cat of cats) {
+    await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: {},
+      create: cat,
+    });
+  }
+
+  const beauteId = (await prisma.category.findUnique({ where: { slug: "beaute-cosmetiques" } }))!.id;
+  const modeId = (await prisma.category.findUnique({ where: { slug: "mode-vetements" } }))!.id;
+  const electroId = (await prisma.category.findUnique({ where: { slug: "electronique" } }))!.id;
+
+  const products = [
+    {
+      name: "Sérum Vitamine C Éclat",
+      nameAr: "سيروم فيتامين سي المشرق",
+      slug: "serum-vitamine-c-eclat",
+      description: "Sérum anti-taches à la vitamine C pour un teint lumineux. Formule légère, absorption rapide. Résultats visibles en 2 semaines.",
+      price: 1800,
+      comparePrice: 2500,
+      images: ["https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=600"],
+      stock: 50,
+      categoryId: beauteId,
+      tags: ["serum", "vitamine-c", "eclat"],
+      featured: true,
+      sold: 234,
+    },
+    {
+      name: "Huile de Rose Musquée Bio",
+      nameAr: "زيت الورد المسك العضوي",
+      slug: "huile-rose-musquee-bio",
+      description: "Huile 100% naturelle pour hydrater et régénérer la peau. Riche en oméga-3 et vitamine E.",
+      price: 1200,
+      comparePrice: 1800,
+      images: ["https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=600"],
+      stock: 80,
+      categoryId: beauteId,
+      tags: ["huile", "bio", "naturel"],
+      featured: true,
+      sold: 189,
+    },
+    {
+      name: "Robe Abaya Moderne",
+      nameAr: "عباءة عصرية",
+      slug: "robe-abaya-moderne",
+      description: "Abaya élégante en tissu fluide, disponible en plusieurs couleurs. Coupe moderne et confortable.",
+      price: 3500,
+      comparePrice: 5000,
+      images: ["https://images.unsplash.com/photo-1585487000160-6ebcfceb0d03?w=600"],
+      stock: 30,
+      categoryId: modeId,
+      tags: ["abaya", "robe", "mode"],
+      featured: true,
+      sold: 156,
+    },
+    {
+      name: "Écouteurs Bluetooth Pro",
+      nameAr: "سماعات بلوتوث احترافية",
+      slug: "ecouteurs-bluetooth-pro",
+      description: "Écouteurs sans fil avec réduction de bruit active, autonomie 30h, charge rapide en 15min.",
+      price: 4500,
+      comparePrice: 7000,
+      images: ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600"],
+      stock: 25,
+      categoryId: electroId,
+      tags: ["ecouteurs", "bluetooth", "audio"],
+      featured: true,
+      sold: 98,
+    },
+    {
+      name: "Crème Hydratante Argan",
+      nameAr: "كريم مرطب بزيت الأرغان",
+      slug: "creme-hydratante-argan",
+      description: "Crème visage à l'huile d'argan marocaine. Nourrit et protège la peau toute la journée.",
+      price: 950,
+      comparePrice: 1400,
+      images: ["https://images.unsplash.com/photo-1611080626919-7cf5a9dbab12?w=600"],
+      stock: 100,
+      categoryId: beauteId,
+      tags: ["creme", "argan", "visage"],
+      featured: false,
+      sold: 312,
+    },
+    {
+      name: "Montre Connectée Sport",
+      nameAr: "ساعة ذكية رياضية",
+      slug: "montre-connectee-sport",
+      description: "Smartwatch avec suivi de fréquence cardiaque, GPS, étanche IP68. Compatible Android et iOS.",
+      price: 6800,
+      comparePrice: 10000,
+      images: ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600"],
+      stock: 20,
+      categoryId: electroId,
+      tags: ["montre", "smartwatch", "sport"],
+      featured: false,
+      sold: 67,
+    },
+  ];
+
+  for (const product of products) {
+    await prisma.product.upsert({
+      where: { slug: product.slug },
+      update: {},
+      create: product,
+    });
+  }
+
+  const settings = [
+    { key: "siteName", value: "TikTok Shop DZ" },
+    { key: "whatsapp", value: "213555000000" },
+    { key: "phone", value: "+213 555 00 00 00" },
+    { key: "email", value: "contact@tiktokshop.dz" },
+    { key: "address", value: "Alger, Algérie" },
+    { key: "shippingFee", value: "400" },
+    { key: "freeShippingThreshold", value: "5000" },
+    { key: "tiktokUrl", value: "https://www.tiktok.com/@tiktokshop.dz" },
+    { key: "instagramUrl", value: "" },
+    { key: "facebookUrl", value: "" },
+    { key: "bannerTitle", value: "Les Meilleures Tendances TikTok" },
+    { key: "bannerSubtitle", value: "Livraison dans toute l'Algérie • Paiement à la livraison" },
+  ];
+
+  for (const s of settings) {
+    await prisma.siteSetting.upsert({
+      where: { key: s.key },
+      update: {},
       create: s,
     });
   }
-  console.log("  4 shifts OK");
 
-  // ===== REFERENCE LISTS: upsert =====
-  const refData = [
-    { type: "FAMILY", value: "Antibiotiques", label: "Antibiotiques" },
-    { type: "FAMILY", value: "Antalgiques", label: "Antalgiques" },
-    { type: "FAMILY", value: "Anti-inflammatoires", label: "Anti-inflammatoires" },
-    { type: "FAMILY", value: "Gastro", label: "Gastro-entérologie" },
-    { type: "FAMILY", value: "Sirops", label: "Sirops" },
-    { type: "FAMILY", value: "Dermatologie", label: "Dermatologie" },
-    { type: "FAMILY", value: "Cardiovasculaire", label: "Cardiovasculaire" },
-    { type: "FAMILY", value: "Autre", label: "Autre" },
-    { type: "FORM", value: "Comprimé", label: "Comprimé" },
-    { type: "FORM", value: "Gélule", label: "Gélule" },
-    { type: "FORM", value: "Sirop", label: "Sirop" },
-    { type: "FORM", value: "Pommade", label: "Pommade" },
-    { type: "FORM", value: "Crème", label: "Crème" },
-    { type: "FORM", value: "Solution", label: "Solution" },
-    { type: "FORM", value: "Injectable", label: "Injectable" },
-    { type: "FORM", value: "Autre", label: "Autre" },
-  ];
-  for (let i = 0; i < refData.length; i++) {
-    const r = refData[i];
-    await prisma.referenceList.upsert({
-      where: { type_value: { type: r.type, value: r.value } },
-      update: { label: r.label },
-      create: { ...r, sortOrder: i + 1 },
-    });
-  }
-  console.log("  Référentiels OK");
-
-  // ===== DOWNTIME CATEGORIES: upsert =====
-  const categories = [
-    { name: "Technique", code: "TECH", color: "#ef4444", sortOrder: 1 },
-    { name: "Organisationnel", code: "ORGA", color: "#f59e0b", sortOrder: 2 },
-    { name: "Qualité", code: "QUAL", color: "#8b5cf6", sortOrder: 3 },
-  ];
-  for (const c of categories) {
-    await prisma.downtimeCategory.upsert({
-      where: { code: c.code },
-      update: { name: c.name, color: c.color, sortOrder: c.sortOrder },
-      create: c,
-    });
-  }
-
-  const catTech = await prisma.downtimeCategory.findUnique({ where: { code: "TECH" } });
-  const catOrga = await prisma.downtimeCategory.findUnique({ where: { code: "ORGA" } });
-  const catQual = await prisma.downtimeCategory.findUnique({ where: { code: "QUAL" } });
-
-  const subCategories = [
-    { name: "Panne mécanique", code: "TECH-MECA", categoryId: catTech!.id, sortOrder: 1 },
-    { name: "Panne électrique", code: "TECH-ELEC", categoryId: catTech!.id, sortOrder: 2 },
-    { name: "Changement", code: "ORGA-CHG", categoryId: catOrga!.id, sortOrder: 1 },
-    { name: "Attente", code: "ORGA-ATT", categoryId: catOrga!.id, sortOrder: 2 },
-    { name: "Contrôle qualité", code: "QUAL-CTRL", categoryId: catQual!.id, sortOrder: 1 },
-  ];
-  for (const s of subCategories) {
-    await prisma.downtimeSubCategory.upsert({
-      where: { code: s.code },
-      update: { name: s.name, categoryId: s.categoryId, sortOrder: s.sortOrder },
-      create: s,
-    });
-  }
-  console.log("  3 catégories + 5 sous-catégories OK");
-
-  console.log("Seed terminé — admin@pharma.com / admin123");
+  console.log("✅ Seed terminé!");
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch(console.error)
   .finally(() => prisma.$disconnect());
