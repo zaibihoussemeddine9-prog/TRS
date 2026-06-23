@@ -287,3 +287,78 @@ model ReferenceList {
   @@unique([type, value])
   @@index([type])
 }
+
+// ============================================
+// E-COMMERCE SHOP
+// ============================================
+
+model ShopProduct {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String   @default("")
+  description   String   @default("") @db.Text
+  descriptionAr String?  @db.Text
+  price         Float
+  originalPrice Float?
+  images        String[]
+  category      String
+  badge         String?
+  rating        Float    @default(4.5)
+  reviewCount   Int      @default(0)
+  stock         Int      @default(100)
+  tiktokViews   Int?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orderItems ShopOrderItem[]
+
+  @@index([category])
+  @@index([active])
+}
+
+model ShopOrder {
+  id          String          @id @default(cuid())
+  orderNumber String          @unique
+  firstName   String
+  lastName    String
+  phone       String
+  wilayaId    Int
+  wilayaName  String
+  commune     String
+  address     String
+  subtotal    Float
+  deliveryFee Float
+  total       Float
+  status      ShopOrderStatus @default(NOUVELLE)
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  items ShopOrderItem[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([orderNumber])
+}
+
+enum ShopOrderStatus {
+  NOUVELLE
+  CONFIRMEE
+  EN_LIVRAISON
+  LIVREE
+  ANNULEE
+}
+
+model ShopOrderItem {
+  id        String      @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Float
+
+  order   ShopOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product ShopProduct @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
